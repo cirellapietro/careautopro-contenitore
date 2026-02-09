@@ -35,7 +35,7 @@ async function createUserDocument(uid: string, email: string | null, displayName
   const firestore = getFirebaseDb();
   const userRef = doc(firestore, 'users', uid);
   const userData = {
-    uid: uid,
+    id: uid,
     email: email,
     displayName: displayName,
     photoURL: photoURL,
