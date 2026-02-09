@@ -9,15 +9,32 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, Firestore, getDoc } from 'firebase/firestore';
 import { firebaseApp } from '../config';
 
-const auth: Auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
+// Lazy initialization for Firebase services
+let auth: Auth;
+let db: Firestore;
+
+const getFirebaseAuth = () => {
+  if (!auth) {
+    auth = getAuth(firebaseApp);
+  }
+  return auth;
+};
+
+const getFirebaseDb = () => {
+  if (!db) {
+    db = getFirestore(firebaseApp);
+  }
+  return db;
+};
+
 const googleProvider = new GoogleAuthProvider();
 
 async function createUserDocument(uid: string, email: string, displayName: string) {
-  const userRef = doc(db, 'users', uid);
+  const firestore = getFirebaseDb();
+  const userRef = doc(firestore, 'users', uid);
   const userData = {
     id: uid,
     email,
@@ -29,28 +46,33 @@ async function createUserDocument(uid: string, email: string, displayName: strin
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<void> {
-  await signInWithEmailAndPassword(auth, email, password);
+  const authInstance = getFirebaseAuth();
+  await signInWithEmailAndPassword(authInstance, email, password);
 }
 
 export async function signUpWithEmail(email: string, password: string, displayName: string): Promise<void> {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const authInstance = getFirebaseAuth();
+  const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
   const user = userCredential.user;
   await updateProfile(user, { displayName });
-  await createUserDocument(user.uid, email, displayName);
+  await createUserDocument(user.uid, user.email!, displayName);
 }
 
 export async function signInWithGoogle(): Promise<void> {
-  const result = await signInWithPopup(auth, googleProvider);
+  const authInstance = getFirebaseAuth();
+  const result = await signInWithPopup(authInstance, googleProvider);
   const user = result.user;
-  // Check if user document already exists, if not create it
-  const userRef = doc(db, 'users', user.uid);
-  const { getDoc } = await import('firebase/firestore');
+  
+  const firestore = getFirebaseDb();
+  const userRef = doc(firestore, 'users', user.uid);
   const docSnap = await getDoc(userRef);
+  
   if (!docSnap.exists()) {
     await createUserDocument(user.uid, user.email!, user.displayName!);
   }
 }
 
 export async function signOut(): Promise<void> {
-  await firebaseSignOut(auth);
+  const authInstance = getFirebaseAuth();
+  await firebaseSignOut(authInstance);
 }
