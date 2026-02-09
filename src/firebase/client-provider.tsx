@@ -1,20 +1,25 @@
 'use client';
-import React from 'react';
-import { FirebaseProvider } from './provider';
-import { getFirebaseApp } from './config';
-import type { FirebaseApp } from 'firebase/app';
 
-export function FirebaseClientProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // getFirebaseApp is now lazy and caches the app instance.
-  // It will return null if the config is not valid, preventing a crash.
-  const app = getFirebaseApp();
-  
+import React, { useMemo, type ReactNode } from 'react';
+import { FirebaseProvider } from '@/firebase/provider';
+import { initializeFirebase } from '@/firebase';
+
+interface FirebaseClientProviderProps {
+  children: ReactNode;
+}
+
+export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+  const firebaseServices = useMemo(() => {
+    // Initialize Firebase on the client side, once per component mount.
+    return initializeFirebase();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   return (
-    <FirebaseProvider firebaseApp={app}>
+    <FirebaseProvider
+      firebaseApp={firebaseServices.firebaseApp}
+      auth={firebaseServices.auth}
+      firestore={firebaseServices.firestore}
+    >
       {children}
     </FirebaseProvider>
   );

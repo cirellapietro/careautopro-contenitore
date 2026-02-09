@@ -1,20 +1,192 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isRole(role) {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    /**
+     * Core Philosophy: This ruleset enforces a strict user-ownership model where all user-generated data
+     * is isolated and accessible only by the user who created it. The primary security mechanism is
+     * path-based authorization, nesting all private data under a path containing the user's unique ID (`/users/{userId}`).
+     *
+     * Data Structure: Data is segregated into two main categories:
+     * 1. Private User Data: Stored under `/users/{userId}/...`, this includes user profiles, vehicles, alerts, and vehicle-specific subcollections.
+     * 2. Public Global Data: Stored in top-level collections like `/vehicleTypes`, this data is read-only for clients and is intended to be managed by administrators.
+     *
+     * Key Security Decisions:
+     * - User data is strictly private. A user can only ever access documents within their own `/users/{userId}` data tree.
+     * - Listing of top-level user documents (`/users`) is disallowed to prevent user enumeration.
+     * - Public data collections (`/vehicleTypes` and its subcollections) are globally readable but are not writeable by any client to protect shared application data.
+     * - Deleting a user's root document (`/users/{userId}`) is disallowed from the client-side to prevent accidental self-destruction of all user data.
+     *
+     * Denormalization for Authorization: To ensure fast and secure rules, relational integrity is enforced on document creation. For example, when a user creates a vehicle under their own path (`/users/{userId}/vehicles/{vehicleId}`), the rule validates that the `vehicle` document itself contains a `userId` field that matches the `{userId}` from the path. This creates a strong, explicit link of ownership within the data itself.
+     *
+     * Structural Segregation: The ruleset leverages separate collections for private and public data. User-specific vehicle information is in `/users/{userId}/vehicles`, while generic vehicle type definitions are in the public `/vehicleTypes` collection. This separation makes it easy to apply broad security policies (e.g., public read vs. private owner-only) and simplifies securing list queries.
+     */
+
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
+    /**
+     * Returns true if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
     }
 
+    /**
+     * Returns true if the authenticated user's UID matches the provided userId.
+     * This is the primary function for enforcing data ownership.
+     */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
+    /**
+     * Returns true if the user is the owner and the document already exists.
+     * Used for safe update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that the ID of the user document being created matches the user's auth UID.
+     */
+    function isCreatingOwnUserDoc(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates that the ID of the user document is not being changed on update.
+     */
+    function isUserDocIdImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+    
+    /**
+     * Validates that a new document has a 'userId' field matching the owner's UID from the path.
+     */
+    function newDocHasCorrectOwner(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Validates that the 'userId' field on an existing document is not being changed.
+     */
+    function ownerIdIsImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * Validates that a new sub-document has a 'vehicleId' field matching the vehicle's ID from the path.
+     */
+    function newDocHasCorrectVehicleId(vehicleId) {
+        return request.resource.data.vehicleId == vehicleId;
+    }
+
+    /**
+     * Validates that the 'vehicleId' field on an existing sub-document is not being changed.
+     */
+    function vehicleIdIsImmutable() {
+        return request.resource.data.vehicleId == resource.data.vehicleId;
+    }
+
+    // =====================================================================
+    // User Data Rules
+    // =====================================================================
+
+    /**
+     * @description Manages user profile documents. A user can create and update their own profile, but cannot view other profiles or delete their own account.
+     * @path /users/{userId}
+     * @allow (create) a new user with auth UID 'user_abc' creating their own document at `/users/user_abc`.
+     * @deny (get) user 'user_abc' trying to read `/users/user_xyz`.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
     match /users/{userId} {
-      allow create: if isOwner(userId);
-      allow get: if isOwner(userId) || isRole('Amministratore');
-      allow list: if isRole('Amministratore');
-      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
+      allow get: if isOwner(userId);
+      allow list: if false; // Disallow listing/querying all users.
+      allow create: if isOwner(userId) && isCreatingOwnUserDoc(userId);
+      allow update: if isExistingOwner(userId) && isUserDocIdImmutable();
+      allow delete: if false; // Prevent users from deleting their own accounts.
+    }
+
+    /**
+     * @description Secures a user's vehicle documents. Only the owner can create, read, update, or delete their own vehicles.
+     * @path /users/{userId}/vehicles/{vehicleId}
+     * @allow (create) user 'user_abc' adding a new vehicle under `/users/user_abc/vehicles/`.
+     * @deny (list) user 'user_abc' trying to list vehicles under `/users/user_xyz/vehicles/`.
+     * @principle Enforces strict ownership for all vehicle data.
+     */
+    match /users/{userId}/vehicles/{vehicleId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && newDocHasCorrectOwner(userId);
+      allow update: if isExistingOwner(userId) && ownerIdIsImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+    
+    /**
+     * @description Secures a user's alert documents. Only the owner can create, read, update, or delete their own alerts.
+     * @path /users/{userId}/alerts/{alertId}
+     * @allow (update) user 'user_abc' marking an alert as read under `/users/user_abc/alerts/{alertId}`.
+     * @deny (create) user 'user_abc' trying to create an alert for user 'user_xyz'.
+     * @principle Enforces strict ownership for user notifications.
+     */
+    match /users/{userId}/alerts/{alertId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && newDocHasCorrectOwner(userId);
+      allow update: if isExistingOwner(userId) && ownerIdIsImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secures all subcollections related to a specific vehicle. This includes maintenance, tracking sessions, and statistics. Access is granted based on ownership of the parent vehicle.
+     * @path /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId}
+     * @allow (get) user 'user_abc' reading a maintenance intervention at `/users/user_abc/vehicles/v1/maintenanceInterventions/m1`.
+     * @deny (delete) user 'user_xyz' trying to delete a tracking session at `/users/user_abc/vehicles/v1/trackingSessions/s1`.
+     * @principle Leverages path-based security to efficiently protect nested data without extra reads.
+     */
+    match /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && newDocHasCorrectVehicleId(vehicleId);
+      allow update: if isExistingOwner(userId) && vehicleIdIsImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // =====================================================================
+    // Public Data Rules
+    // =====================================================================
+
+    /**
+     * @description Manages vehicle type definitions (e.g., Petrol, Diesel). This is public, read-only data for all users.
+     * @path /vehicleTypes/{vehicleTypeId}
+     * @allow (get) any user, signed in or not, reading a vehicle type.
+     * @deny (create) any client trying to add a new vehicle type. This data is admin-managed.
+     * @principle Protects shared application data by making it read-only for clients.
+     */
+    match /vehicleTypes/{vehicleTypeId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Manages standard maintenance checks associated with a vehicle type. This is public, read-only data.
+     * @path /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId}
+     * @allow (list) any user, signed in or not, listing all maintenance checks for a given vehicle type.
+     * @deny (update) any client trying to change a maintenance interval. This data is admin-managed.
+     * @principle Protects shared application data by making it read-only for clients.
+     */
+    match /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
       allow delete: if false;
     }
   }
