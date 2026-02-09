@@ -12,29 +12,22 @@ import {
 import { getFirestore, doc, setDoc, Firestore, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '../config';
 
-// Lazy initialization for Firebase services
 let auth: Auth;
 let db: Firestore;
 
-const getFirebaseAuth = () => {
+function getFirebaseAuth() {
   if (auth) return auth;
   const app = getFirebaseApp();
-  if (!app) {
-    throw new Error("Configurazione Firebase mancante o non valida. Controlla il tuo file .env.");
-  }
   auth = getAuth(app);
   return auth;
-};
+}
 
-const getFirebaseDb = () => {
+function getFirebaseDb() {
   if (db) return db;
   const app = getFirebaseApp();
-  if (!app) {
-    throw new Error("Configurazione Firebase mancante o non valida. Controlla il tuo file .env.");
-  }
   db = getFirestore(app);
   return db;
-};
+}
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -48,7 +41,7 @@ async function createUserDocument(uid: string, email: string | null, displayName
     photoURL: photoURL,
     role: 'Utente',
   };
-  await setDoc(userRef, userData);
+  await setDoc(userRef, userData, { merge: true });
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<void> {

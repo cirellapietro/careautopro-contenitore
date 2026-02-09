@@ -23,7 +23,7 @@ import { ThemeToggleButton } from "@/components/ui/theme-toggle-button"
 import { Logo } from "@/components/logo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePathname, useRouter } from "next/navigation"
-import { useUser } from "@/firebase"
+import { useUser } from "@/firebase/auth/use-user"
 import { signOut } from "@/firebase/auth/auth"
 
 const navItems = [
