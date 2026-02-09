@@ -1,12 +1,16 @@
+'use client';
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 
+// This configuration is hardcoded to ensure it's always available and correct.
+// It bypasses any issues with environment variables.
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyC3-uKkTSwd10KzGIl4iJ4R7M-6zT5PuSA",
+  authDomain: "careautopro-72a3c.firebaseapp.com",
+  projectId: "careautopro-72a3c",
+  storageBucket: "careautopro-72a3c.appspot.com",
+  messagingSenderId: "305304983220",
+  appId: "1:305304983220:web:1e3518335c05c862955f2b",
+  measurementId: "G-7Q6H2WKE91"
 };
 
 // Caches the Firebase app instance
@@ -22,10 +26,13 @@ export const getFirebaseApp = (): FirebaseApp | null => {
     return firebaseAppInstance;
   }
   
+  // The config is now hardcoded, so we can directly initialize.
   if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     firebaseAppInstance = initializeApp(firebaseConfig);
     return firebaseAppInstance;
   }
 
+  // This should not be reached if the config is correct.
+  console.error("Firebase config is missing or invalid.");
   return null;
 }
