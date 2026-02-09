@@ -4,20 +4,10 @@ import {
   LayoutDashboard,
   Car,
   BarChart3,
-  Wrench,
-  User,
-  Users,
   PanelLeft,
+  LogOut,
 } from "lucide-react"
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -28,19 +18,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button"
 import { Logo } from "@/components/logo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useUser } from "@/firebase"
+import { signOut } from "@/firebase/auth/auth"
 
 const navItems = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/dashboard/vehicles", icon: Car, label: "Veicoli" },
     { href: "/dashboard/statistics", icon: BarChart3, label: "Statistiche" },
 ]
@@ -48,6 +34,13 @@ const navItems = [
 const MobileNav = () => (
     <nav className="grid gap-6 text-lg font-medium">
         <Logo className="mb-4" />
+         <Link
+            href="/dashboard"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+        >
+            <LayoutDashboard className="h-5 w-5" />
+            Dashboard
+        </Link>
         {navItems.map((item) => (
             <Link
                 key={item.label}
@@ -61,7 +54,20 @@ const MobileNav = () => (
     </nav>
 )
 
-const UserMenu = () => (
+const UserMenu = () => {
+    const { user } = useUser();
+    const router = useRouter();
+
+    const handleSignOut = async () => {
+        await signOut();
+        router.push('/login');
+    }
+
+    if (!user) return null;
+
+    const userInitial = user.name ? user.name.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : '?');
+
+    return (
     <DropdownMenu>
         <DropdownMenuTrigger asChild>
             <Button
@@ -70,36 +76,49 @@ const UserMenu = () => (
                 className="overflow-hidden rounded-full"
             >
                 <Avatar>
-                    <AvatarImage src="https://picsum.photos/seed/5/100/100" alt="Avatar" />
-                    <AvatarFallback>MR</AvatarFallback>
+                    <AvatarImage src={user.avatarUrl || ''} alt={user.name || ''} />
+                    <AvatarFallback>{userInitial}</AvatarFallback>
                 </Avatar>
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>{user.name || user.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-                <Link href="/dashboard/profile" className="w-full">Profilo</Link>
+            <DropdownMenuItem asChild>
+                <Link href="/dashboard/profile">Profilo</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-                <Link href="/dashboard/admin/users" className="w-full">Admin Utenti</Link>
-            </DropdownMenuItem>
+            {user.role === 'Amministratore' && (
+              <DropdownMenuItem asChild>
+                  <Link href="/dashboard/admin/users">Admin Utenti</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Esci</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 cursor-pointer">
+                <LogOut className="h-4 w-4" />
+                <span>Esci</span>
+            </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
-)
+)}
 
 const DesktopNav = () => {
     const pathname = usePathname();
+    const isDashboardHome = pathname === '/dashboard';
+    
     return (
         <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
             <Logo />
+             <Link
+                href="/dashboard"
+                className={`transition-colors hover:text-foreground ${isDashboardHome ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
+            >
+                Dashboard
+            </Link>
             {navItems.map((item) => (
                 <Link
                     key={item.label}
                     href={item.href}
-                    className={`transition-colors hover:text-foreground ${pathname.startsWith(item.href) ? 'text-foreground' : 'text-muted-foreground'}`}
+                    className={`transition-colors hover:text-foreground ${pathname.startsWith(item.href) ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
                 >
                     {item.label}
                 </Link>

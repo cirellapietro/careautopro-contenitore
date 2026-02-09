@@ -4,7 +4,7 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { generateMaintenanceAdvice } from '@/app/actions';
+import { generateMaintenanceAdvice } from '@/app/dashboard/vehicles/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

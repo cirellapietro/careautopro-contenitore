@@ -1,10 +1,5 @@
 import type { User, Vehicle, MaintenanceIntervention, DrivingSession, DailyStat } from './types';
 
-export const mockUsers: User[] = [
-  { id: '1', name: 'Mario Rossi', email: 'mario.rossi@example.com', avatarUrl: 'https://picsum.photos/seed/5/100/100', role: 'Amministratore' },
-  { id: '2', name: 'Luisa Bianchi', email: 'luisa.bianchi@example.com', avatarUrl: 'https://picsum.photos/seed/6/100/100', role: 'Utente' },
-];
-
 export const mockVehicles: Vehicle[] = [
   {
     id: '1',

@@ -1,8 +1,8 @@
 export type User = {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string;
+  id: string; // Corresponds to Firebase user.uid
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
   role: 'Amministratore' | 'Utente';
 };
 

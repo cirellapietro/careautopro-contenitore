@@ -1,9 +1,16 @@
+'use client';
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useUser } from "@/firebase";
 
 export default function ProfilePage() {
+    const { user } = useUser();
+
+    if (!user) return null;
+
     return (
         <div className="space-y-6">
             <div>
@@ -18,11 +25,11 @@ export default function ProfilePage() {
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Nome completo</Label>
-                        <Input id="name" defaultValue="Mario Rossi" />
+                        <Input id="name" defaultValue={user.name || ''} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue="mario.rossi@example.com" />
+                        <Input id="email" type="email" defaultValue={user.email || ''} readOnly />
                     </div>
                 </CardContent>
                 <CardContent>
