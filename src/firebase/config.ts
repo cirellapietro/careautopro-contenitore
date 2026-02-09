@@ -9,12 +9,16 @@ export const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function initializeFirebase(): FirebaseApp {
-  if (!getApps().length) {
-    return initializeApp(firebaseConfig);
-  } else {
-    return getApp();
-  }
-}
+// Caches the Firebase app instance
+let firebaseAppInstance: FirebaseApp;
 
-export const firebaseApp = initializeFirebase();
+export const getFirebaseApp = (): FirebaseApp => {
+  if (!firebaseAppInstance) {
+    if (getApps().length > 0) {
+      firebaseAppInstance = getApp();
+    } else {
+      firebaseAppInstance = initializeApp(firebaseConfig);
+    }
+  }
+  return firebaseAppInstance;
+}

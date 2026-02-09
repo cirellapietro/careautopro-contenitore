@@ -10,7 +10,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, Firestore, getDoc } from 'firebase/firestore';
-import { firebaseApp } from '../config';
+import { getFirebaseApp } from '../config';
 
 // Lazy initialization for Firebase services
 let auth: Auth;
@@ -18,14 +18,14 @@ let db: Firestore;
 
 const getFirebaseAuth = () => {
   if (!auth) {
-    auth = getAuth(firebaseApp);
+    auth = getAuth(getFirebaseApp());
   }
   return auth;
 };
 
 const getFirebaseDb = () => {
   if (!db) {
-    db = getFirestore(firebaseApp);
+    db = getFirestore(getFirebaseApp());
   }
   return db;
 };

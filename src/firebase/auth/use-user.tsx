@@ -12,16 +12,23 @@ interface UseUserHook {
 
 export function useUser(): UseUserHook {
   const context = useContext(FirebaseContext);
-  if (!context) {
-    throw new Error('useUser must be used within a FirebaseProvider');
-  }
-  const { firebaseApp } = context;
-  const auth = getAuth(firebaseApp);
-  const db = getFirestore(firebaseApp);
+  const firebaseApp = context?.firebaseApp;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!firebaseApp) {
+      if (context) {
+        // App is not initialized yet, still loading.
+      } else {
+        // Provider not there, stop loading.
+        setLoading(false);
+      }
+      return;
+    }
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -37,13 +44,12 @@ export function useUser(): UseUserHook {
                 role: userData.role || 'Utente',
             });
         } else {
-            // This might happen if user signed up but doc creation failed, or for older users.
             setUser({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName,
                 photoURL: firebaseUser.photoURL,
-                role: 'Utente', // Default role
+                role: 'Utente',
             });
         }
       } else {
@@ -53,7 +59,7 @@ export function useUser(): UseUserHook {
     });
 
     return () => unsubscribe();
-  }, [auth, db]);
+  }, [firebaseApp, context]);
 
   return { user, loading };
 }

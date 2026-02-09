@@ -3,7 +3,7 @@ import React from 'react';
 import type { FirebaseApp } from 'firebase/app';
 
 interface FirebaseContextValue {
-  firebaseApp: FirebaseApp;
+  firebaseApp: FirebaseApp | null;
 }
 
 export const FirebaseContext = React.createContext<FirebaseContextValue | null>(
@@ -15,7 +15,7 @@ export function FirebaseProvider({
   firebaseApp,
 }: {
   children: React.ReactNode;
-  firebaseApp: FirebaseApp;
+  firebaseApp: FirebaseApp | null;
 }) {
   return (
     <FirebaseContext.Provider value={{ firebaseApp }}>
