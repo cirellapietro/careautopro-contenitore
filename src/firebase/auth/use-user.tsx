@@ -18,12 +18,7 @@ export function useUser(): UseUserHook {
 
   useEffect(() => {
     if (!firebaseApp) {
-      if (context) {
-        // App is not initialized yet, still loading.
-      } else {
-        // Provider not there, stop loading.
-        setLoading(false);
-      }
+      setLoading(false);
       return;
     }
     const auth = getAuth(firebaseApp);
@@ -44,12 +39,14 @@ export function useUser(): UseUserHook {
                 role: userData.role || 'Utente',
             });
         } else {
+            // This case can happen if the user document creation failed after signup.
+            // We still create a user object from the auth details.
             setUser({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName,
                 photoURL: firebaseUser.photoURL,
-                role: 'Utente',
+                role: 'Utente', 
             });
         }
       } else {
@@ -59,7 +56,7 @@ export function useUser(): UseUserHook {
     });
 
     return () => unsubscribe();
-  }, [firebaseApp, context]);
+  }, [firebaseApp]);
 
   return { user, loading };
 }

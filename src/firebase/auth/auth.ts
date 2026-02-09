@@ -17,16 +17,22 @@ let auth: Auth;
 let db: Firestore;
 
 const getFirebaseAuth = () => {
-  if (!auth) {
-    auth = getAuth(getFirebaseApp());
+  if (auth) return auth;
+  const app = getFirebaseApp();
+  if (!app) {
+    throw new Error("Configurazione Firebase mancante o non valida. Controlla il tuo file .env.");
   }
+  auth = getAuth(app);
   return auth;
 };
 
 const getFirebaseDb = () => {
-  if (!db) {
-    db = getFirestore(getFirebaseApp());
+  if (db) return db;
+  const app = getFirebaseApp();
+  if (!app) {
+    throw new Error("Configurazione Firebase mancante o non valida. Controlla il tuo file .env.");
   }
+  db = getFirestore(app);
   return db;
 };
 

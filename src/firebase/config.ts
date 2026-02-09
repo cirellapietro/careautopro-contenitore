@@ -10,15 +10,22 @@ export const firebaseConfig = {
 };
 
 // Caches the Firebase app instance
-let firebaseAppInstance: FirebaseApp;
+let firebaseAppInstance: FirebaseApp | null = null;
 
-export const getFirebaseApp = (): FirebaseApp => {
-  if (!firebaseAppInstance) {
-    if (getApps().length > 0) {
-      firebaseAppInstance = getApp();
-    } else {
-      firebaseAppInstance = initializeApp(firebaseConfig);
-    }
+export const getFirebaseApp = (): FirebaseApp | null => {
+  if (firebaseAppInstance) {
+    return firebaseAppInstance;
   }
-  return firebaseAppInstance;
+
+  if (getApps().length > 0) {
+    firebaseAppInstance = getApp();
+    return firebaseAppInstance;
+  }
+  
+  if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+    firebaseAppInstance = initializeApp(firebaseConfig);
+    return firebaseAppInstance;
+  }
+
+  return null;
 }
