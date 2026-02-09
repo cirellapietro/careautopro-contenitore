@@ -1,0 +1,121 @@
+import { mockVehicles, mockInterventions } from '@/lib/mock-data';
+import type { MaintenanceIntervention } from '@/lib/types';
+import { notFound } from 'next/navigation';
+import Image from 'next/image';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Clock, Wrench } from 'lucide-react';
+import { MaintenanceAdvisorForm } from '@/components/dashboard/maintenance-advisor-form';
+
+const getStatusBadge = (status: MaintenanceIntervention['status']) => {
+    switch (status) {
+        case 'Completato':
+            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Completato</Badge>;
+        case 'Pianificato':
+            return <Badge variant="secondary">Pianificato</Badge>;
+        case 'Richiesto':
+            return <Badge variant="destructive">Richiesto</Badge>;
+    }
+}
+
+function MaintenanceTable({ interventions }: { interventions: MaintenanceIntervention[] }) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Interventi di Manutenzione</CardTitle>
+                <CardDescription>Cronologia e interventi richiesti per questo veicolo.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Descrizione</TableHead>
+                            <TableHead>Stato</TableHead>
+                            <TableHead>Urgenza</TableHead>
+                            <TableHead>Data</TableHead>
+                            <TableHead className="text-right">Azioni</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {interventions.map((item) => (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.description}</TableCell>
+                                <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                <TableCell>{item.urgency}</TableCell>
+                                <TableCell>{item.completionDate ? new Date(item.completionDate).toLocaleDateString('it-IT') : (item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString('it-IT') : 'N/D')}</TableCell>
+                                <TableCell className="text-right">
+                                    {item.status !== 'Completato' && <Button size="sm"><CheckCircle className="mr-2 h-4 w-4" /> Segna come Fatto</Button>}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
+function VehicleDetails({ vehicle }: { vehicle: (typeof mockVehicles)[0] }) {
+    return (
+         <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Dettagli Veicolo</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><span className="text-muted-foreground">Marca:</span> {vehicle.make}</div>
+                    <div><span className="text-muted-foreground">Modello:</span> {vehicle.model}</div>
+                    <div><span className="text-muted-foreground">Anno:</span> {vehicle.year}</div>
+                    <div><span className="text-muted-foreground">Targa:</span> {vehicle.licensePlate}</div>
+                    <div><span className="text-muted-foreground">Tipo:</span> {vehicle.type}</div>
+                    <div><span className="text-muted-foreground">Chilometraggio:</span> {vehicle.currentMileage.toLocaleString('it-IT')} km</div>
+                    <div><span className="text-muted-foreground">VIN:</span> {vehicle.vin}</div>
+                    <div><span className="text-muted-foreground">Ultima Manutenzione:</span> {new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')}</div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function VehicleDetailPage({ params }: { params: { id: string } }) {
+  const vehicle = mockVehicles.find(v => v.id === params.id);
+  const interventions = mockInterventions.filter(i => i.vehicleId === params.id);
+
+  if (!vehicle) {
+    notFound();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <div className="relative h-40 w-40 flex-shrink-0">
+          <Image src={vehicle.imageUrl} alt={vehicle.name} fill className="rounded-lg object-cover" data-ai-hint={vehicle.imageHint} />
+        </div>
+        <div>
+          <h1 className="font-headline text-4xl font-bold">{vehicle.name}</h1>
+          <p className="text-lg text-muted-foreground">{vehicle.make} {vehicle.model}</p>
+        </div>
+      </div>
+      
+      <Tabs defaultValue="maintenance">
+        <TabsList>
+          <TabsTrigger value="maintenance">Manutenzione</TabsTrigger>
+          <TabsTrigger value="details">Dettagli</TabsTrigger>
+          <TabsTrigger value="ai-advisor">Assistente AI</TabsTrigger>
+        </TabsList>
+        <TabsContent value="maintenance" className="mt-4">
+            <MaintenanceTable interventions={interventions} />
+        </TabsContent>
+        <TabsContent value="details" className="mt-4">
+            <VehicleDetails vehicle={vehicle} />
+        </TabsContent>
+        <TabsContent value="ai-advisor" className="mt-4">
+            <MaintenanceAdvisorForm vehicle={vehicle} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
