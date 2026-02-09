@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { useUser } from '@/firebase/auth/use-user';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({
   children,
@@ -13,6 +15,7 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,9 +32,34 @@ export default function DashboardLayout({
     );
   }
 
+  const navItems = [
+    { href: "/dashboard/statistics", label: "Statistiche" },
+    { href: "/dashboard/vehicles", label: "Veicoli" },
+  ];
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
+       <div className="border-b">
+        <div className="container flex-1 items-start md:grid md:gap-6 lg:gap-10">
+            <nav className="flex gap-4 overflow-x-auto py-4">
+                 {navItems.map((item) => (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                            "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                            pathname.startsWith(item.href)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-muted"
+                        )}
+                    >
+                        {item.label}
+                    </Link>
+                ))}
+            </nav>
+        </div>
+      </div>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         {children}
       </main>
