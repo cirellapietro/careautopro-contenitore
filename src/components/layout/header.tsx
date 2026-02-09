@@ -65,7 +65,7 @@ const UserMenu = () => {
 
     if (!user) return null;
 
-    const userInitial = user.name ? user.name.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : '?');
+    const userInitial = user.displayName ? user.displayName.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : '?');
 
     return (
     <DropdownMenu>
@@ -76,13 +76,13 @@ const UserMenu = () => {
                 className="overflow-hidden rounded-full"
             >
                 <Avatar>
-                    <AvatarImage src={user.avatarUrl || ''} alt={user.name || ''} />
+                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
                     <AvatarFallback>{userInitial}</AvatarFallback>
                 </Avatar>
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user.name || user.email}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user.displayName || user.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
                 <Link href="/dashboard/profile">Profilo</Link>

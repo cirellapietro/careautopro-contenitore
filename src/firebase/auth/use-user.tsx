@@ -30,19 +30,19 @@ export function useUser(): UseUserHook {
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             setUser({
-                id: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                avatarUrl: firebaseUser.photoURL,
+                uid: firebaseUser.uid,
+                email: userData.email || firebaseUser.email,
+                displayName: userData.displayName || firebaseUser.displayName,
+                photoURL: userData.photoURL || firebaseUser.photoURL,
                 role: userData.role || 'Utente',
             });
         } else {
             // This might happen if user signed up but doc creation failed, or for older users.
             setUser({
-                id: firebaseUser.uid,
+                uid: firebaseUser.uid,
                 email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                avatarUrl: firebaseUser.photoURL,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
                 role: 'Utente', // Default role
             });
         }

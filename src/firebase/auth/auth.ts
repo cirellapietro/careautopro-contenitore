@@ -32,14 +32,14 @@ const getFirebaseDb = () => {
 
 const googleProvider = new GoogleAuthProvider();
 
-async function createUserDocument(uid: string, email: string, displayName: string) {
+async function createUserDocument(uid: string, email: string | null, displayName: string | null, photoURL: string | null) {
   const firestore = getFirebaseDb();
   const userRef = doc(firestore, 'users', uid);
   const userData = {
-    id: uid,
-    email,
-    name: displayName,
-    avatarUrl: null,
+    uid: uid,
+    email: email,
+    displayName: displayName,
+    photoURL: photoURL,
     role: 'Utente',
   };
   await setDoc(userRef, userData);
@@ -55,7 +55,7 @@ export async function signUpWithEmail(email: string, password: string, displayNa
   const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
   const user = userCredential.user;
   await updateProfile(user, { displayName });
-  await createUserDocument(user.uid, user.email!, displayName);
+  await createUserDocument(user.uid, user.email, displayName, user.photoURL);
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -68,7 +68,7 @@ export async function signInWithGoogle(): Promise<void> {
   const docSnap = await getDoc(userRef);
   
   if (!docSnap.exists()) {
-    await createUserDocument(user.uid, user.email!, user.displayName!);
+    await createUserDocument(user.uid, user.email, user.displayName, user.photoURL);
   }
 }
 
