@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button"
 import { Logo } from "@/components/logo"
@@ -33,7 +33,6 @@ const navItems = [
 
 const MobileNav = () => (
     <nav className="grid gap-6 text-lg font-medium">
-        <Logo className="mb-4" />
          <Link
             href="/dashboard"
             className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
@@ -143,6 +142,11 @@ export function Header() {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="flex flex-col">
+                    <SheetHeader className="text-left">
+                        <SheetTitle>
+                            <Logo />
+                        </SheetTitle>
+                    </SheetHeader>
                     <MobileNav />
                 </SheetContent>
             </Sheet>
