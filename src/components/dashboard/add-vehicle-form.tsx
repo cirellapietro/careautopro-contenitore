@@ -45,8 +45,6 @@ import { useRouter } from 'next/navigation';
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
-  make: z.string().min(2, { message: 'La marca è obbligatoria.' }),
-  model: z.string().min(2, { message: 'Il modello è obbligatorio.' }),
   year: z.coerce
     .number()
     .min(1900, { message: 'Anno non valido.' })
@@ -246,34 +244,11 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         <FormItem className="col-span-2">
                           <FormLabel>Nome veicolo</FormLabel>
                           <FormControl>
-                            <Input placeholder="Es. Berlina Blu" {...field} />
+                            <Input placeholder="Es. Fiat Tipo" {...field} />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="make"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Marca</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Es. Fiat" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="model"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Modello</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Es. Tipo" {...field} />
-                          </FormControl>
+                          <FormDescription>
+                            Usa un nome che identifichi il veicolo (es. auto principale, lavoro, etc.).
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

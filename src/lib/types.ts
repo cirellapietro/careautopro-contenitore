@@ -28,8 +28,8 @@ export type Vehicle = {
   id: string;
   userId: string;
   name: string;
-  make: string;
-  model: string;
+  make?: string;
+  model?: string;
   year: number;
   vin?: string;
   licensePlate: string;

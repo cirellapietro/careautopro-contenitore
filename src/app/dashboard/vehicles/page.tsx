@@ -269,7 +269,11 @@ export default function VehiclesPage() {
                                     <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
                                         <div className="font-medium">{vehicle.name}</div>
-                                        <div className="text-sm text-muted-foreground">{vehicle.make} {vehicle.model}</div>
+                                        {(vehicle.make || vehicle.model) && (
+                                            <div className="text-sm text-muted-foreground">
+                                                {[vehicle.make, vehicle.model].filter(Boolean).join(' ')}
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         {vehicle.dailyKms.toFixed(1)} km
