@@ -36,6 +36,8 @@ export default function DashboardLayout({
   const navItems = [
     { href: "/dashboard/statistics", label: "Statistiche" },
     { href: "/dashboard/vehicles", label: "Veicoli" },
+    { href: "/dashboard/interventions", label: "Interventi" },
+    { href: "/dashboard/notifications", label: "Notifiche" },
   ];
 
   return (

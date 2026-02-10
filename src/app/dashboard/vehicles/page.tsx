@@ -36,7 +36,6 @@ export default function VehiclesPage() {
     const { toast } = useToast();
     
     const [vehiclesWithStats, setVehiclesWithStats] = useState<VehicleWithStats[]>([]);
-    const [statsLoading, setStatsLoading] = useState(true);
     const [isSeeding, setIsSeeding] = useState(false);
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
     const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
@@ -124,44 +123,42 @@ export default function VehiclesPage() {
 
     // Effect to fetch initial stats and show mileage prompt
     useEffect(() => {
-        if (!userVehicles) {
-            setStatsLoading(false);
-            if (!vehiclesLoading) setVehiclesWithStats([]);
-            return;
-        };
-
-        if (userVehicles.length > 0 && trackedVehicleId === null) {
+        if (userVehicles && userVehicles.length > 0 && trackedVehicleId === null) {
             if (!sessionStorage.getItem('mileagePromptShown')) {
                 setMileageModalOpen(true);
                 sessionStorage.setItem('mileagePromptShown', 'true');
             }
-        } else if (userVehicles.length === 0) {
+        } else if (userVehicles && userVehicles.length === 0) {
             setTrackedVehicleId(null);
         }
-
+        
+        if (!userVehicles) {
+            setVehiclesWithStats([]);
+            return;
+        }
+    
         const fetchStats = async () => {
             if (!firestore || !user) return;
-            setStatsLoading(true);
             try {
-                const processedVehicles: VehicleWithStats[] = [];
-
-                for (const vehicle of userVehicles) {
-                    const statsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
-                    const statsSnap = await getDocs(statsRef);
-                    const dailyStats = statsSnap.docs.map(doc => doc.data() as DailyStat);
-
-                    let dailyKms = 0;
-                    let dailyTime = 0;
-                    
-                    if (dailyStats.length > 0) {
-                        const totalKms = dailyStats.reduce((sum, stat) => sum + stat.distance, 0);
-                        const totalTime = dailyStats.reduce((sum, stat) => sum + stat.duration, 0);
-                        dailyKms = totalKms / dailyStats.length;
-                        dailyTime = totalTime / dailyStats.length;
-                    }
-                    
-                    processedVehicles.push({ ...vehicle, dailyKms, dailyTime, isAverage: true });
-                }
+                const processedVehicles: VehicleWithStats[] = await Promise.all(
+                    userVehicles.map(async (vehicle) => {
+                        const statsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
+                        const statsSnap = await getDocs(statsRef);
+                        const dailyStats = statsSnap.docs.map(doc => doc.data() as DailyStat);
+    
+                        let dailyKms = 0;
+                        let dailyTime = 0;
+                        
+                        if (dailyStats.length > 0) {
+                            const totalKms = dailyStats.reduce((sum, stat) => sum + stat.distance, 0);
+                            const totalTime = dailyStats.reduce((sum, stat) => sum + stat.duration, 0);
+                            dailyKms = totalKms / dailyStats.length;
+                            dailyTime = totalTime / dailyStats.length;
+                        }
+                        
+                        return { ...vehicle, dailyKms, dailyTime, isAverage: true };
+                    })
+                );
                 setVehiclesWithStats(processedVehicles);
             } catch (error) {
                  console.error("Error fetching vehicle stats:", error);
@@ -170,13 +167,15 @@ export default function VehiclesPage() {
                     title: 'Errore',
                     description: 'Impossibile caricare le statistiche dei veicoli.',
                 });
-            } finally {
-                setStatsLoading(false);
             }
         };
-
-        fetchStats();
-    }, [user, firestore, userVehicles, toast, vehiclesLoading]);
+    
+        if (userVehicles.length > 0) {
+            fetchStats();
+        } else {
+            setVehiclesWithStats([]);
+        }
+    }, [user, firestore, userVehicles, toast]);
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
         const previouslyTrackedId = trackedVehicleId;
@@ -232,7 +231,7 @@ export default function VehiclesPage() {
         }
     };
     
-    const loading = vehiclesLoading || statsLoading;
+    const loading = vehiclesLoading;
 
     return (
         <div className="space-y-6">
