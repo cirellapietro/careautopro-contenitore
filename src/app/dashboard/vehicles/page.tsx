@@ -18,7 +18,6 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
-import { seedDatabase } from '@/lib/seed';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
 import { UpdateMileageDialog } from '@/components/dashboard/update-mileage-dialog';
@@ -36,7 +35,6 @@ export default function VehiclesPage() {
     const { toast } = useToast();
     
     const [vehiclesWithStats, setVehiclesWithStats] = useState<VehicleWithStats[]>([]);
-    const [isSeeding, setIsSeeding] = useState(false);
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
     const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
     const [isMileageModalOpen, setMileageModalOpen] = useState(false);
@@ -210,27 +208,6 @@ export default function VehiclesPage() {
         }
     };
     
-    const handleSeedData = async () => {
-        if (!user || !firestore) return;
-        setIsSeeding(true);
-        try {
-            await seedDatabase(firestore, user.uid);
-            toast({
-                title: 'Successo',
-                description: 'Dati di esempio caricati correttamente.',
-            });
-        } catch (error) {
-            console.error("Error seeding data:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Errore',
-                description: 'Impossibile caricare i dati di esempio.',
-            });
-        } finally {
-            setIsSeeding(false);
-        }
-    };
-    
     const loading = vehiclesLoading;
 
     return (
@@ -254,17 +231,7 @@ export default function VehiclesPage() {
                     <CardContent className="h-48 text-center flex flex-col items-center justify-center p-6">
                         <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
                         <p className="text-muted-foreground mt-2 max-w-lg">Aggiungi il tuo primo veicolo per iniziare. Per ogni veicolo inserito, l'app genererà automaticamente un piano di manutenzione iniziale basato sul tipo di veicolo, includendo scadenze importanti come revisione e assicurazione, per aiutarti a creare il tuo storico di manutenzione.</p>
-                        <div className="mt-4 flex justify-center gap-4">
-                            <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
-                                {isSeeding ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Caricamento...
-                                    </>
-                                ) : (
-                                    "Popola con dati di esempio"
-                                )}
-                            </Button>
+                        <div className="mt-4">
                              <Button onClick={() => setAddVehicleOpen(true)}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
                             </Button>
