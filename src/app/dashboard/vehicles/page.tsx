@@ -18,6 +18,8 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
+import { seedDatabase } from '@/lib/seed';
+import { useToast } from '@/hooks/use-toast';
 
 type VehicleWithStats = Vehicle & {
     dailyKms: number;
@@ -28,8 +30,10 @@ type VehicleWithStats = Vehicle & {
 export default function VehiclesPage() {
     const { user } = useUser();
     const { firestore } = useFirebase();
+    const { toast } = useToast();
     const [vehicles, setVehicles] = useState<VehicleWithStats[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isSeeding, setIsSeeding] = useState(false);
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -45,6 +49,8 @@ export default function VehiclesPage() {
 
                 if (userVehicles.length > 0 && trackedVehicleId === null) {
                     setTrackedVehicleId(userVehicles[0].id);
+                } else if (userVehicles.length === 0) {
+                    setTrackedVehicleId(null);
                 }
                 
                 const today = new Date().toISOString().split('T')[0];
@@ -81,13 +87,18 @@ export default function VehiclesPage() {
 
             } catch (error) {
                 console.error("Error fetching vehicles data:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Errore',
+                    description: 'Impossibile caricare i dati dei veicoli.',
+                });
             } finally {
                 setLoading(false);
             }
         };
 
         fetchData();
-    }, [user, firestore, trackedVehicleId]); 
+    }, [user, firestore, trackedVehicleId, toast]); 
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
         if (isChecked) {
@@ -99,6 +110,29 @@ export default function VehiclesPage() {
         }
     };
     
+    const handleSeedData = async () => {
+        if (!user || !firestore) return;
+        setIsSeeding(true);
+        try {
+            await seedDatabase(firestore, user.uid);
+            toast({
+                title: 'Successo',
+                description: 'Dati di esempio caricati correttamente.',
+            });
+            // Trigger a re-fetch by updating the state the useEffect depends on
+            setTrackedVehicleId(`seeded-${Date.now()}`);
+        } catch (error) {
+            console.error("Error seeding data:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Errore',
+                description: 'Impossibile caricare i dati di esempio.',
+            });
+        } finally {
+            setIsSeeding(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex min-h-[400px] w-full flex-col items-center justify-center">
@@ -167,7 +201,25 @@ export default function VehiclesPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center">Nessun veicolo trovato. Aggiungine uno per iniziare.</TableCell>
+                                    <TableCell colSpan={6} className="h-48 text-center">
+                                        <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
+                                        <p className="text-muted-foreground mt-2">Inizia aggiungendo il tuo primo veicolo o usa i nostri dati di esempio.</p>
+                                        <div className="mt-4 flex justify-center gap-4">
+                                            <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
+                                                {isSeeding ? (
+                                                    <>
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Caricamento...
+                                                    </>
+                                                ) : (
+                                                    "Popola con dati di esempio"
+                                                )}
+                                            </Button>
+                                            <Button>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
+                                            </Button>
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
