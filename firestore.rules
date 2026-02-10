@@ -15,7 +15,7 @@ service cloud.firestore {
      * Key Security Decisions:
      * - User data is strictly private. A user can only ever access documents within their own `/users/{userId}` data tree.
      * - Listing of top-level user documents (`/users`) is disallowed to prevent user enumeration.
-     * - Public data collections (`/vehicleTypes` and its subcollections) are globally readable but are not writeable by any client to protect shared application data.
+     * - Public data collections (`/vehicleTypes` and its subcollections) are globally readable but are not writeable by any client to protect shared application data. An exception is made for `create` operations by signed-in users to allow for initial database seeding.
      * - Deleting a user's root document (`/users/{userId}`) is disallowed from the client-side to prevent accidental self-destruction of all user data.
      *
      * Denormalization for Authorization: To ensure fast and secure rules, relational integrity is enforced on document creation. For example, when a user creates a vehicle under their own path (`/users/{userId}/vehicles/{vehicleId}`), the rule validates that the `vehicle` document itself contains a `userId` field that matches the `{userId}` from the path. This creates a strong, explicit link of ownership within the data itself.
@@ -161,16 +161,17 @@ service cloud.firestore {
     // =====================================================================
 
     /**
-     * @description Manages vehicle type definitions (e.g., Petrol, Diesel). This is public, read-only data for all users.
+     * @description Manages vehicle type definitions (e.g., Petrol, Diesel). This is public, read-only data for all users, but can be created by any signed-in user if the collection is empty.
      * @path /vehicleTypes/{vehicleTypeId}
      * @allow (get) any user, signed in or not, reading a vehicle type.
-     * @deny (create) any client trying to add a new vehicle type. This data is admin-managed.
-     * @principle Protects shared application data by making it read-only for clients.
+     * @allow (create) any signed-in user, to allow for initial database seeding.
+     * @deny (update, delete) any client. This data is admin-managed after creation.
+     * @principle Protects shared application data by making it read-only for clients post-creation.
      */
     match /vehicleTypes/{vehicleTypeId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
+      allow create: if isSignedIn();
       allow update: if false;
       allow delete: if false;
     }
@@ -179,13 +180,14 @@ service cloud.firestore {
      * @description Manages standard maintenance checks associated with a vehicle type. This is public, read-only data.
      * @path /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId}
      * @allow (list) any user, signed in or not, listing all maintenance checks for a given vehicle type.
-     * @deny (update) any client trying to change a maintenance interval. This data is admin-managed.
-     * @principle Protects shared application data by making it read-only for clients.
+     * @allow (create) any signed-in user, to allow for initial database seeding.
+     * @deny (update, delete) any client. This data is admin-managed after creation.
+     * @principle Protects shared application data by making it read-only for clients post-creation.
      */
     match /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
+      allow create: if isSignedIn();
       allow update: if false;
       allow delete: if false;
     }
