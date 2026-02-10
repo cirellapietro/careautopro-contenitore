@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mockVehicles } from '@/lib/mock-data';
@@ -15,6 +18,17 @@ import Link from 'next/link';
 
 export default function VehiclesPage() {
   const vehicles = mockVehicles;
+  const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(vehicles.length > 0 ? vehicles[0].id : null);
+
+  const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
+    if (isChecked) {
+      setTrackedVehicleId(vehicleId);
+    } else {
+      if (trackedVehicleId === vehicleId) {
+        setTrackedVehicleId(null);
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -27,7 +41,7 @@ export default function VehiclesPage() {
       <Card>
         <CardHeader>
             <CardTitle>Elenco Veicoli</CardTitle>
-            <CardDescription>Gestisci i tuoi veicoli e le relative impostazioni di tracciamento.</CardDescription>
+            <CardDescription>Gestisci i tuoi veicoli e le relative impostazioni di tracciamento. Puoi tracciare un solo veicolo alla volta.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
@@ -52,7 +66,8 @@ export default function VehiclesPage() {
                             <TableCell className="text-center">
                                 <Switch
                                     id={`gps-switch-${vehicle.id}`}
-                                    defaultChecked={vehicle.id !== '3'} // Example: Tesla has it off by default
+                                    checked={trackedVehicleId === vehicle.id}
+                                    onCheckedChange={(isChecked) => handleTrackingChange(vehicle.id, isChecked)}
                                     aria-label={`Attiva o disattiva il tracking GPS per ${vehicle.name}`}
                                 />
                             </TableCell>
