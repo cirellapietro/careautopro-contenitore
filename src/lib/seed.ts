@@ -5,6 +5,9 @@ import {
   writeBatch,
   doc,
   collection,
+  getDocs,
+  query,
+  limit,
 } from 'firebase/firestore';
 import { mockVehicles, mockInterventions, getMockStats, mockDrivingSessions } from './mock-data';
 import type { MaintenanceCheck, VehicleType } from './types';
@@ -17,7 +20,7 @@ const vehicleTypeData: VehicleType[] = [
   { id: 'elettrica', name: 'Elettrica', averageAnnualMileage: 10000 },
 ];
 
-const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id'>[]> = {
+const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[]> = {
   benzina: [
     { description: 'Cambio olio e filtro olio', intervalMileage: 15000, intervalTime: 12 },
     { description: 'Controllo e sostituzione filtro aria', intervalMileage: 30000, intervalTime: 24 },
@@ -47,10 +50,22 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id'>[]> = {
 };
 
 
-export const seedDatabase = async (firestore: Firestore, userId: string) => {
+/**
+ * Seeds the global, public collections like vehicleTypes and their maintenanceChecks.
+ * It checks if the data already exists to avoid overwriting.
+ */
+export const seedGlobalData = async (firestore: Firestore) => {
+  const vehicleTypesRef = collection(firestore, 'vehicleTypes');
+  const q = query(vehicleTypesRef, limit(1));
+  const snapshot = await getDocs(q);
+
+  // If there's already data, don't seed again.
+  if (!snapshot.empty) {
+    return;
+  }
+
   const batch = writeBatch(firestore);
 
-  // 1. Seed Global Vehicle Types and Maintenance Checks
   vehicleTypeData.forEach(vt => {
     const vtRef = doc(firestore, 'vehicleTypes', vt.id);
     batch.set(vtRef, vt);
@@ -59,13 +74,26 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
     if (checks) {
       checks.forEach(check => {
         const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
-        batch.set(checkRef, { ...check, id: checkRef.id });
+        batch.set(checkRef, { 
+            ...check, 
+            id: checkRef.id,
+            vehicleTypeId: vt.id,
+        });
       });
     }
   });
+  
+  await batch.commit();
+};
 
 
-  // 2. Seed user-specific mock data
+export const seedDatabase = async (firestore: Firestore, userId: string) => {
+  // First, ensure global data is seeded. This makes the button idempotent for global data.
+  await seedGlobalData(firestore);
+  
+  const batch = writeBatch(firestore);
+
+  // Seed user-specific mock data
   const vehicleIdMap = new Map<string, string>(); // maps old mock ID to new Firestore ID
 
   mockVehicles.forEach((vehicle) => {
@@ -128,5 +156,3 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
 
   await batch.commit();
 };
-
-    

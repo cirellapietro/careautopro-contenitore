@@ -14,6 +14,7 @@ export type VehicleType = {
 
 export type MaintenanceCheck = {
     id: string;
+    vehicleTypeId: string;
     description: string;
     intervalMileage?: number;
     intervalTime?: number; // in months
