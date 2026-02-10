@@ -30,7 +30,7 @@ export type Vehicle = {
   name: string;
   make?: string;
   model?: string;
-  year: number;
+  registrationDate: string;
   vin?: string;
   licensePlate: string;
   imageUrl?: string;

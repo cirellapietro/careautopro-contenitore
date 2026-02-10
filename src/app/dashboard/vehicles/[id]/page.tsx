@@ -1,5 +1,5 @@
 import { mockVehicles, mockInterventions } from '@/lib/mock-data';
-import type { MaintenanceIntervention } from '@/lib/types';
+import type { MaintenanceIntervention, Vehicle } from '@/lib/types';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,7 +58,7 @@ function MaintenanceTable({ interventions }: { interventions: MaintenanceInterve
     );
 }
 
-function VehicleDetails({ vehicle }: { vehicle: (typeof mockVehicles)[0] }) {
+function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
     return (
          <Card>
             <CardHeader>
@@ -68,7 +68,7 @@ function VehicleDetails({ vehicle }: { vehicle: (typeof mockVehicles)[0] }) {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                     <div><span className="text-muted-foreground">Marca:</span> {vehicle.make}</div>
                     <div><span className="text-muted-foreground">Modello:</span> {vehicle.model}</div>
-                    <div><span className="text-muted-foreground">Anno:</span> {vehicle.year}</div>
+                    <div><span className="text-muted-foreground">Data Immatricolazione:</span> {new Date(vehicle.registrationDate).toLocaleDateString('it-IT')}</div>
                     <div><span className="text-muted-foreground">Targa:</span> {vehicle.licensePlate}</div>
                     <div><span className="text-muted-foreground">Tipo:</span> {vehicle.type}</div>
                     <div><span className="text-muted-foreground">Chilometraggio:</span> {vehicle.currentMileage.toLocaleString('it-IT')} km</div>

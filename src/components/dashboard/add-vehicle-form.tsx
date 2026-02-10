@@ -45,10 +45,7 @@ import { useRouter } from 'next/navigation';
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
-  year: z.coerce
-    .number()
-    .min(1900, { message: 'Anno non valido.' })
-    .max(new Date().getFullYear() + 1, { message: 'Anno non valido.' }),
+  registrationDate: z.string().min(1, "La data di immatricolazione è obbligatoria."),
   licensePlate: z
     .string()
     .min(5, { message: 'Targa non valida.' })
@@ -78,7 +75,9 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
-      year: new Date().getFullYear(),
+      registrationDate: new Date().toISOString().split('T')[0],
+      name: '',
+      licensePlate: '',
     },
   });
 
@@ -118,7 +117,11 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     setTimeout(() => {
         setNewVehicleId(null);
         form.reset({
-            year: new Date().getFullYear(),
+            registrationDate: new Date().toISOString().split('T')[0],
+            name: '',
+            licensePlate: '',
+            vehicleTypeId: undefined,
+            currentMileage: undefined,
         });
         setIsSubmitting(false);
     }, 300);
@@ -136,12 +139,18 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
 
       const mileage =
         values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
+        
+      const nameParts = values.name.split(' ');
+      const make = nameParts[0];
+      const model = nameParts.slice(1).join(' ');
 
       // 1. Create Vehicle
       const newVehicle = {
         id: newVehicleRef.id,
         userId: user.uid,
         ...values,
+        make: make || '',
+        model: model || '',
         type: selectedVehicleType.name,
         currentMileage: mileage,
         lastMaintenanceDate: new Date().toISOString().split('T')[0],
@@ -255,12 +264,12 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                     />
                     <FormField
                       control={form.control}
-                      name="year"
+                      name="registrationDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Anno</FormLabel>
+                          <FormLabel>Data di immatricolazione</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} />
+                            <Input type="date" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
