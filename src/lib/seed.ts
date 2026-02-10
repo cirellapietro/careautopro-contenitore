@@ -7,27 +7,77 @@ import {
   collection,
 } from 'firebase/firestore';
 import { mockVehicles, mockInterventions, getMockStats, mockDrivingSessions } from './mock-data';
+import type { MaintenanceCheck, VehicleType } from './types';
+
+// Data for global collections
+const vehicleTypeData: VehicleType[] = [
+  { id: 'benzina', name: 'Benzina', averageAnnualMileage: 15000 },
+  { id: 'diesel', name: 'Diesel', averageAnnualMileage: 20000 },
+  { id: 'ibrida', name: 'Ibrida', averageAnnualMileage: 12000 },
+  { id: 'elettrica', name: 'Elettrica', averageAnnualMileage: 10000 },
+];
+
+const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id'>[]> = {
+  benzina: [
+    { description: 'Cambio olio e filtro olio', intervalMileage: 15000, intervalTime: 12 },
+    { description: 'Controllo e sostituzione filtro aria', intervalMileage: 30000, intervalTime: 24 },
+    { description: 'Sostituzione candele', intervalMileage: 60000, intervalTime: 48 },
+    { description: 'Controllo liquido freni', intervalMileage: 30000, intervalTime: 24 },
+    { description: 'Sostituzione cinghia di distribuzione', intervalMileage: 100000, intervalTime: 72 },
+  ],
+  diesel: [
+    { description: 'Cambio olio e filtro olio', intervalMileage: 20000, intervalTime: 12 },
+    { description: 'Sostituzione filtro gasolio', intervalMileage: 40000, intervalTime: 24 },
+    { description: 'Controllo e sostituzione filtro aria', intervalMileage: 40000, intervalTime: 24 },
+    { description: 'Controllo liquido freni', intervalMileage: 40000, intervalTime: 24 },
+    { description: 'Sostituzione cinghia di distribuzione', intervalMileage: 120000, intervalTime: 72 },
+  ],
+  ibrida: [
+    { description: 'Cambio olio e filtro olio (motore termico)', intervalMileage: 15000, intervalTime: 12 },
+    { description: 'Controllo stato batteria ad alta tensione', intervalMileage: 20000, intervalTime: 12 },
+    { description: 'Controllo sistema frenante (frenata rigenerativa)', intervalMileage: 30000, intervalTime: 24 },
+    { description: 'Sostituzione liquido raffreddamento inverter', intervalMileage: 80000, intervalTime: 60 },
+  ],
+  elettrica: [
+    { description: 'Controllo stato batteria ad alta tensione', intervalMileage: 25000, intervalTime: 12 },
+    { description: 'Sostituzione liquido freni', intervalMileage: 50000, intervalTime: 24 },
+    { description: 'Sostituzione filtro abitacolo', intervalMileage: 25000, intervalTime: 12 },
+    { description: 'Controllo usura pneumatici', intervalMileage: 15000, intervalTime: 12 },
+  ],
+};
+
 
 export const seedDatabase = async (firestore: Firestore, userId: string) => {
   const batch = writeBatch(firestore);
 
+  // 1. Seed Global Vehicle Types and Maintenance Checks
+  vehicleTypeData.forEach(vt => {
+    const vtRef = doc(firestore, 'vehicleTypes', vt.id);
+    batch.set(vtRef, vt);
+
+    const checks = maintenanceCheckData[vt.id];
+    if (checks) {
+      checks.forEach(check => {
+        const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
+        batch.set(checkRef, { ...check, id: checkRef.id });
+      });
+    }
+  });
+
+
+  // 2. Seed user-specific mock data
   const vehicleIdMap = new Map<string, string>(); // maps old mock ID to new Firestore ID
 
-  // 1. Seed Vehicles
   mockVehicles.forEach((vehicle) => {
-    // Create a reference for a new document with a unique ID
     const newVehicleRef = doc(collection(firestore, `users/${userId}/vehicles`));
-    // Map the old mock ID to the new unique ID
     vehicleIdMap.set(vehicle.id, newVehicleRef.id);
-    // Stage the set operation in the batch
     batch.set(newVehicleRef, {
       ...vehicle,
-      id: newVehicleRef.id, // Ensure the document data has the new ID
-      userId: userId,      // Set the owner ID to the current user
+      id: newVehicleRef.id,
+      userId: userId,
     });
   });
 
-  // 2. Seed Interventions
   mockInterventions.forEach((intervention) => {
     const newVehicleId = vehicleIdMap.get(intervention.vehicleId);
     if (newVehicleId) {
@@ -48,9 +98,7 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
   const mockStats = getMockStats();
   const vehicleEntries = [...vehicleIdMap.entries()];
 
-  // 3. Seed Daily Stats and Driving Sessions for each new vehicle
   for (const [mockVehicleId, newVehicleId] of vehicleEntries) {
-    // Seed Daily Stats for the last 30 days
     mockStats.forEach((stat) => {
       const statDate = stat.date;
       const newStatRef = doc(
@@ -61,7 +109,6 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
       batch.set(newStatRef, stat);
     });
 
-    // Seed Driving Sessions if they exist for the original mock vehicle
     mockDrivingSessions
       .filter((s) => s.vehicleId === mockVehicleId)
       .forEach((session) => {
@@ -79,6 +126,7 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
       });
   }
 
-  // Commit all the writes at once
   await batch.commit();
 };
+
+    

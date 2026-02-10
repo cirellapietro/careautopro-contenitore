@@ -6,6 +6,19 @@ export type User = {
   role: 'Amministratore' | 'Utente';
 };
 
+export type VehicleType = {
+    id: string;
+    name: 'Benzina' | 'Diesel' | 'Elettrica' | 'Ibrida';
+    averageAnnualMileage: number;
+}
+
+export type MaintenanceCheck = {
+    id: string;
+    description: string;
+    intervalMileage?: number;
+    intervalTime?: number; // in months
+}
+
 export type Vehicle = {
   id: string;
   userId: string;
@@ -13,11 +26,12 @@ export type Vehicle = {
   make: string;
   model: string;
   year: number;
-  vin: string;
+  vin?: string;
   licensePlate: string;
-  imageUrl: string;
-  imageHint: string;
-  type: 'Benzina' | 'Diesel' | 'Elettrica' | 'Ibrida';
+  imageUrl?: string;
+  imageHint?: string;
+  type: VehicleType['name'];
+  vehicleTypeId: string;
   currentMileage: number;
   lastMaintenanceDate: string;
 };
@@ -48,3 +62,5 @@ export type DailyStat = {
   distance: number;
   duration: number; // in minutes
 };
+
+    

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,11 +15,12 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useCollection } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { seedDatabase } from '@/lib/seed';
 import { useToast } from '@/hooks/use-toast';
+import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
 
 type VehicleWithStats = Vehicle & {
     dailyKms: number;
@@ -31,34 +32,42 @@ export default function VehiclesPage() {
     const { user } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
-    const [vehicles, setVehicles] = useState<VehicleWithStats[]>([]);
-    const [loading, setLoading] = useState(true);
+    
+    const [vehiclesWithStats, setVehiclesWithStats] = useState<VehicleWithStats[]>([]);
+    const [statsLoading, setStatsLoading] = useState(true);
     const [isSeeding, setIsSeeding] = useState(false);
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
+    const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
+
+    const vehiclesQuery = useMemo(() => {
+        if (!user || !firestore) return null;
+        return collection(firestore, `users/${user.uid}/vehicles`);
+    }, [user, firestore]);
+
+    const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery as any);
 
     useEffect(() => {
-        if (!user || !firestore) return;
+        if (!userVehicles) {
+            setStatsLoading(false);
+            if (!vehiclesLoading) setVehiclesWithStats([]);
+            return;
+        };
 
-        const fetchData = async () => {
-            setLoading(true);
+        if (userVehicles.length > 0 && trackedVehicleId === null) {
+            setTrackedVehicleId(userVehicles[0].id);
+        } else if (userVehicles.length === 0) {
+            setTrackedVehicleId(null);
+        }
+
+        const fetchStats = async () => {
+            if (!firestore) return;
+            setStatsLoading(true);
             try {
-                // 1. Fetch vehicles
-                const vehiclesRef = collection(firestore, `users/${user.uid}/vehicles`);
-                const vehiclesSnap = await getDocs(vehiclesRef);
-                const userVehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
-
-                if (userVehicles.length > 0 && trackedVehicleId === null) {
-                    setTrackedVehicleId(userVehicles[0].id);
-                } else if (userVehicles.length === 0) {
-                    setTrackedVehicleId(null);
-                }
-                
                 const today = new Date().toISOString().split('T')[0];
-                const vehiclesWithStats: VehicleWithStats[] = [];
+                const processedVehicles: VehicleWithStats[] = [];
 
-                // 2. For each vehicle, fetch stats and calculate display values
                 for (const vehicle of userVehicles) {
-                    const statsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
+                    const statsRef = collection(firestore, `users/${user!.uid}/vehicles/${vehicle.id}/dailyStatistics`);
                     const statsSnap = await getDocs(statsRef);
                     const dailyStats = statsSnap.docs.map(doc => doc.data() as DailyStat);
 
@@ -80,25 +89,23 @@ export default function VehiclesPage() {
                         }
                         isAverage = true;
                     }
-                    vehiclesWithStats.push({ ...vehicle, dailyKms, dailyTime, isAverage });
+                    processedVehicles.push({ ...vehicle, dailyKms, dailyTime, isAverage });
                 }
-
-                setVehicles(vehiclesWithStats);
-
+                setVehiclesWithStats(processedVehicles);
             } catch (error) {
-                console.error("Error fetching vehicles data:", error);
+                 console.error("Error fetching vehicle stats:", error);
                 toast({
                     variant: 'destructive',
                     title: 'Errore',
-                    description: 'Impossibile caricare i dati dei veicoli.',
+                    description: 'Impossibile caricare le statistiche dei veicoli.',
                 });
             } finally {
-                setLoading(false);
+                setStatsLoading(false);
             }
         };
 
-        fetchData();
-    }, [user, firestore, trackedVehicleId, toast]); 
+        fetchStats();
+    }, [user, firestore, userVehicles, trackedVehicleId, toast]);
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
         if (isChecked) {
@@ -119,8 +126,6 @@ export default function VehiclesPage() {
                 title: 'Successo',
                 description: 'Dati di esempio caricati correttamente.',
             });
-            // Trigger a re-fetch by updating the state the useEffect depends on
-            setTrackedVehicleId(`seeded-${Date.now()}`);
         } catch (error) {
             console.error("Error seeding data:", error);
             toast({
@@ -132,30 +137,30 @@ export default function VehiclesPage() {
             setIsSeeding(false);
         }
     };
-
-    if (loading) {
-        return (
-            <div className="flex min-h-[400px] w-full flex-col items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Caricamento veicoli...</p>
-            </div>
-        );
-    }
+    
+    const loading = vehiclesLoading || statsLoading;
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="font-headline text-3xl font-bold">I Miei Veicoli</h1>
-                <Button>
+                <Button onClick={() => setAddVehicleOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
                 </Button>
             </div>
+             <AddVehicleForm open={isAddVehicleOpen} onOpenChange={setAddVehicleOpen} />
             <Card>
                 <CardHeader>
                     <CardTitle>Elenco Veicoli</CardTitle>
                     <CardDescription>Gestisci i tuoi veicoli e le relative impostazioni di tracciamento. Puoi tracciare un solo veicolo alla volta.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {loading ? (
+                         <div className="flex min-h-[200px] w-full flex-col items-center justify-center">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                            <p className="mt-4 text-muted-foreground">Caricamento veicoli...</p>
+                        </div>
+                    ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -168,7 +173,7 @@ export default function VehiclesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {vehicles.length > 0 ? vehicles.map((vehicle) => (
+                            {vehiclesWithStats.length > 0 ? vehiclesWithStats.map((vehicle) => (
                                 <TableRow key={vehicle.id}>
                                     <TableCell>
                                         <div className="font-medium">{vehicle.name}</div>
@@ -215,7 +220,7 @@ export default function VehiclesPage() {
                                                     "Popola con dati di esempio"
                                                 )}
                                             </Button>
-                                            <Button>
+                                             <Button onClick={() => setAddVehicleOpen(true)}>
                                                 <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
                                             </Button>
                                         </div>
@@ -224,8 +229,11 @@ export default function VehiclesPage() {
                             )}
                         </TableBody>
                     </Table>
+                    )}
                 </CardContent>
             </Card>
         </div>
     );
 }
+
+    

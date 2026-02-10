@@ -13,6 +13,7 @@ export const mockVehicles: Vehicle[] = [
     imageUrl: 'https://picsum.photos/seed/2/600/400',
     imageHint: 'blue sedan',
     type: 'Diesel',
+    vehicleTypeId: 'diesel',
     currentMileage: 45000,
     lastMaintenanceDate: '2023-11-15',
   },
@@ -28,6 +29,7 @@ export const mockVehicles: Vehicle[] = [
     imageUrl: 'https://picsum.photos/seed/3/600/400',
     imageHint: 'white suv',
     type: 'Ibrida',
+    vehicleTypeId: 'hybrid',
     currentMileage: 22000,
     lastMaintenanceDate: '2024-01-20',
   },
@@ -43,6 +45,7 @@ export const mockVehicles: Vehicle[] = [
     imageUrl: 'https://picsum.photos/seed/4/600/400',
     imageHint: 'electric car',
     type: 'Elettrica',
+    vehicleTypeId: 'electric',
     currentMileage: 8500,
     lastMaintenanceDate: '2024-03-10',
   },
@@ -89,3 +92,5 @@ export const mockHourlyBreakdown = [
     { hour: '18-21', minutes: 210 },
     { hour: '21-24', minutes: 30 },
 ];
+
+    
