@@ -261,7 +261,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                             <Input placeholder="Es. Fiat Tipo" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Usa un nome che identifichi il veicolo (es. auto principale, lavoro, etc.).
+                            Aggiungi al nome la Marca e il modello, ed eventualmente un nome che identifica l'auto: principale, lavoro, casa
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
