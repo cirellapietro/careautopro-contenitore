@@ -231,11 +231,6 @@ export default function VehiclesPage() {
                     <CardContent className="h-48 text-center flex flex-col items-center justify-center p-6">
                         <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
                         <p className="text-muted-foreground mt-2 max-w-lg">Aggiungi il tuo primo veicolo per iniziare. Per ogni veicolo inserito, l'app genererà automaticamente un piano di manutenzione iniziale basato sul tipo di veicolo, includendo scadenze importanti come revisione e assicurazione, per aiutarti a creare il tuo storico di manutenzione.</p>
-                        <div className="mt-4">
-                             <Button onClick={() => setAddVehicleOpen(true)}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
-                            </Button>
-                        </div>
                     </CardContent>
                 </Card>
             ) : (
