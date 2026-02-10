@@ -168,7 +168,7 @@ export default function ProfilePage() {
                                       <Input type="number" placeholder="Es. 3" {...field} />
                                     </FormControl>
                                     <FormDescription>
-                                      Quanti giorni prima della scadenza vuoi ricevere un promemoria.
+                                      Indica quanti giorni prima della scadenza vuoi iniziare a ricevere i promemoria. La notifica ti verrà inviata ogni giorno fino alla data dell'intervento.
                                     </FormDescription>
                                     <FormMessage />
                                     </FormItem>
