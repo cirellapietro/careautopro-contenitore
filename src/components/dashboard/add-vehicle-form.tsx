@@ -147,7 +147,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         
       const nameParts = values.name.split(' ');
       const make = nameParts[0];
-      const model = nameParts.slice(1).join(' ');
+      const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim();
 
       // 1. Create Vehicle
       const newVehicle = {
@@ -258,10 +258,10 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         <FormItem className="col-span-2">
                           <FormLabel>Nome veicolo</FormLabel>
                           <FormControl>
-                            <Input placeholder="Es. Fiat Tipo" {...field} />
+                            <Input placeholder="Es. Fiat Panda (Lavoro)" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Aggiungi al nome la Marca e il modello, ed eventualmente un nome che identifica l'auto: principale, lavoro, casa
+                            Aggiungi marca, modello e un nome per identificare il veicolo.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
