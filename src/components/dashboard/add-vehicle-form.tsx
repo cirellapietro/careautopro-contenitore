@@ -261,7 +261,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                             <Input placeholder="Es. Fiat Panda (Lavoro)" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Aggiungi marca, modello e un nome per identificare il veicolo.
+                            Inserisci marca, modello e un nome per identificare il veicolo.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -311,7 +311,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         <FormItem>
                           <FormLabel>Targa</FormLabel>
                           <FormControl>
-                            <Input placeholder="Es. AB123CD" {...field} />
+                            <Input placeholder="ES. AB123CD" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
