@@ -40,6 +40,8 @@ async function createUserDocument(uid: string, email: string | null, displayName
     displayName: displayName,
     photoURL: photoURL,
     role: 'Utente',
+    notificationChannels: ['app', 'email'],
+    notificationReminderTime: 3, // days
   };
   await setDoc(userRef, userData, { merge: true });
 }

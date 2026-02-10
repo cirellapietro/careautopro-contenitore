@@ -1,9 +1,13 @@
+export type NotificationChannel = 'app' | 'email' | 'sms' | 'whatsapp' | 'telegram' | 'facebook';
+
 export type User = {
   uid: string; // Corresponds to Firebase user.uid
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
   role: 'Amministratore' | 'Utente';
+  notificationChannels?: NotificationChannel[];
+  notificationReminderTime?: number; // in days
 };
 
 export type VehicleType = {

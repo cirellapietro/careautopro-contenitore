@@ -23,6 +23,25 @@
           "type": "string",
           "description": "URL of the user's profile picture.",
           "format": "uri"
+        },
+        "notificationChannels": {
+          "type": "array",
+          "description": "Preferred channels for notifications.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "app",
+              "email",
+              "sms",
+              "whatsapp",
+              "telegram",
+              "facebook"
+            ]
+          }
+        },
+        "notificationReminderTime": {
+          "type": "number",
+          "description": "Days before a due date to send a notification reminder."
         }
       },
       "required": [
