@@ -166,9 +166,7 @@
       "required": [
         "id",
         "vehicleTypeId",
-        "description",
-        "intervalMileage",
-        "intervalTime"
+        "description"
       ]
     },
     "CustomMaintenanceCheck": {
@@ -346,6 +344,56 @@
         "timestamp",
         "isRead"
       ]
+    },
+    "Config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Config",
+      "type": "object",
+      "description": "Represents global, non-sensitive application configuration settings.",
+      "properties": {
+        "soggettoemail": {
+          "type": "string",
+          "description": "Default subject for outgoing emails."
+        },
+        "templateemail": {
+          "type": "string",
+          "description": "Identifier for the email template to use."
+        },
+        "loglevel": {
+          "type": "string",
+          "description": "The logging level for the application.",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        },
+        "debug": {
+          "type": "boolean",
+          "description": "A general flag to enable or disable debug mode."
+        },
+        "inviamessaggireali": {
+          "type": "boolean",
+          "description": "Flag to determine if real messages should be sent (e.g., emails, SMS)."
+        },
+        "admobidpublisher": {
+          "type": "string",
+          "description": "AdMob publisher ID."
+        },
+        "admobidapp": {
+          "type": "string",
+          "description": "AdMob App ID."
+        },
+        "numeroorefrequenzasincronizzazionepwa": {
+          "type": "number",
+          "description": "Synchronization frequency for the PWA in hours."
+        },
+        "configDebugMode": {
+          "type": "boolean",
+          "description": "Specific flag for configuration debugging."
+        }
+      }
     }
   },
   "auth": {
@@ -543,9 +591,26 @@
             }
           ]
         }
+      },
+      {
+        "path": "/config/{configId}",
+        "definition": {
+          "entityName": "Config",
+          "schema": {
+            "$ref": "#/backend/entities/Config"
+          },
+          "description": "Stores global, non-sensitive application settings. Typically contains a single document with a known ID like 'main'. Publicly readable.",
+          "params": [
+            {
+              "name": "configId",
+              "description": "The unique identifier for the configuration document (e.g., 'main')."
+            }
+          ]
+        }
       }
     ],
     "reasoning": "The Firestore data structure is designed to ensure security, scalability, and ease of debugging, adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters). The structure emphasizes path-based ownership and denormalization of authorization data to avoid hierarchical authorization dependencies and facilitate atomic operations.\n\n1.  **Authorization Independence:** This is achieved primarily through denormalization. For example, the `/users/{userId}/vehicles/{vehicleId}` path establishes clear ownership. Any data requiring authorization based on vehicle attributes (e.g., maintenance interventions) will include the `userId` as a field, removing the need to fetch parent data. For collaborative scenarios (if any), a `members` map would be denormalized into relevant subcollections.\n\n2.  **Clarity of Intent:** The path structure clearly reflects the relationships between entities. For instance, `/users/{userId}/vehicles/{vehicleId}/maintenanceInterventions/{interventionId}` explicitly shows that maintenance interventions belong to a specific vehicle owned by a specific user. This makes the intent of the security rules more transparent.\n\n3.  **DBAC (Database-Based Access Control):** User roles are not explicitly defined in this structure, because the user is assigned as the owner of the document. This uses the `request.auth.uid` to validate ownership for private data (vehicles, maintenance records, alerts).\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data with different access needs. Path-based ownership (`/users/{userId}/vehicles`) ensures that listing vehicles under a user is inherently secure, as rules can simply check if `request.auth.uid == userId`. Segregation also applies to global data; vehicle types and their maintenance checks are in separate collections, allowing open read access while user-specific data remains protected.\n\n5.  **Invariants:** The structure supports data integrity by making ownership explicit in the path. Timestamps for alerts are directly stored in the alert documents, which simplifies their management and querying. Denormalized data, such as the `userId` in `MaintenanceIntervention`, enforces the invariant that every intervention is tied to a specific user's vehicle, and thus controlled by the user."
   }
 }
+
     

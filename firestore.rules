@@ -161,6 +161,21 @@ service cloud.firestore {
     // =====================================================================
 
     /**
+     * @description Manages global, read-only application configuration.
+     * @path /config/{configId}
+     * @allow (get) any user, signed in or not, reading the app config.
+     * @deny (write) any client. This data is admin-managed.
+     * @principle Protects shared application settings by making them read-only for clients.
+     */
+    match /config/{configId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
      * @description Manages vehicle type definitions (e.g., Petrol, Diesel). This is public, read-only data for all users, but can be created by any signed-in user if the collection is empty.
      * @path /vehicleTypes/{vehicleTypeId}
      * @allow (get) any user, signed in or not, reading a vehicle type.
@@ -193,3 +208,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
