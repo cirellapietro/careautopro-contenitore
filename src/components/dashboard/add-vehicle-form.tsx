@@ -275,7 +275,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder={loadingTypes ? "Caricamento..." : "Seleziona un tipo"} />
-                      </SelectValue>
+                      </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {vehicleTypes.map((vt) => (
@@ -329,5 +329,3 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     </Dialog>
   );
 }
-
-    
