@@ -7,6 +7,7 @@ import { HourlyBreakdownChart } from "@/components/dashboard/hourly-breakdown-ch
 import { mockHourlyBreakdown } from "@/lib/mock-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase';
@@ -18,7 +19,9 @@ export default function StatisticsPage() {
     const { user } = useUser();
     const { firestore } = useFirebase();
     const [loading, setLoading] = useState(true);
+    const [selectedVehicleId, setSelectedVehicleId] = useState('all');
 
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [totalKm, setTotalKm] = useState(0);
     const [totalHours, setTotalHours] = useState(0);
     const [pendingInterventions, setPendingInterventions] = useState(0);
@@ -33,18 +36,25 @@ export default function StatisticsPage() {
             setLoading(true);
 
             try {
+                // Fetch all vehicles for the dropdown first, and to know which ones to process
                 const vehiclesRef = collection(firestore, `users/${user.uid}/vehicles`);
                 const vehiclesSnap = await getDocs(vehiclesRef);
-                const vehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Vehicle[];
+                const allUserVehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Vehicle[]);
+                setVehicles(allUserVehicles);
                 
-                const newVehicleMap = new Map(vehicles.map(v => [v.id, v.name]));
+                const newVehicleMap = new Map(allUserVehicles.map(v => [v.id, v.name]));
                 setVehicleMap(newVehicleMap);
+
+                // Determine which vehicles to fetch stats for
+                const vehiclesToProcess = selectedVehicleId === 'all' 
+                    ? allUserVehicles 
+                    : allUserVehicles.filter(v => v.id === selectedVehicleId);
 
                 let allDailyStats: DailyStat[] = [];
                 let allInterventions: MaintenanceIntervention[] = [];
                 let allDrivingSessions: DrivingSession[] = [];
 
-                for (const vehicle of vehicles) {
+                for (const vehicle of vehiclesToProcess) {
                     const dailyStatsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
                     const dailyStatsSnap = await getDocs(dailyStatsRef);
                     dailyStatsSnap.forEach(doc => {
@@ -63,21 +73,24 @@ export default function StatisticsPage() {
                         allDrivingSessions.push({ id: doc.id, ...doc.data() } as DrivingSession);
                     });
                 }
+                
+                // If filtering by a single vehicle, we don't need to aggregate dates
+                const aggregatedDailyStats = selectedVehicleId === 'all'
+                    ? Array.from(allDailyStats.reduce((map, stat) => {
+                        const existing = map.get(stat.date);
+                        if (existing) {
+                            existing.distance += stat.distance;
+                            existing.duration += stat.duration;
+                        } else {
+                            map.set(stat.date, { ...stat, date: stat.date });
+                        }
+                        return map;
+                      }, new Map<string, DailyStat>()).values())
+                    : allDailyStats;
 
-                // Aggregate daily stats by date
-                const aggregatedDailyStatsMap = new Map<string, DailyStat>();
-                allDailyStats.forEach(stat => {
-                    const existing = aggregatedDailyStatsMap.get(stat.date);
-                    if (existing) {
-                        existing.distance += stat.distance;
-                        existing.duration += stat.duration;
-                    } else {
-                        aggregatedDailyStatsMap.set(stat.date, { ...stat, date: stat.date });
-                    }
-                });
-                const aggregatedDailyStats = Array.from(aggregatedDailyStatsMap.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                const sortedAggregatedStats = aggregatedDailyStats.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-                const last30DaysStats = aggregatedDailyStats.slice(-30);
+                const last30DaysStats = sortedAggregatedStats.slice(-30);
                 setDailyStats(last30DaysStats);
 
                 const totalKm = last30DaysStats.reduce((acc, stat) => acc + stat.distance, 0);
@@ -98,9 +111,9 @@ export default function StatisticsPage() {
         };
 
         fetchData();
-    }, [user, firestore]);
+    }, [user, firestore, selectedVehicleId]);
 
-    if (loading) {
+    if (loading && vehicles.length === 0) {
         return (
             <div className="flex min-h-screen w-full flex-col items-center justify-center">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -111,9 +124,29 @@ export default function StatisticsPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="font-headline text-3xl font-bold">Statistiche</h1>
-                <p className="text-muted-foreground">Panoramica del tuo utilizzo e dei tuoi veicoli.</p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 className="font-headline text-3xl font-bold">Statistiche</h1>
+                    <p className="text-muted-foreground">Panoramica del tuo utilizzo e dei tuoi veicoli.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    {loading && <Loader2 className="h-5 w-5 animate-spin" />}
+                    <div className="w-full md:w-64">
+                        <Select onValueChange={setSelectedVehicleId} defaultValue="all" disabled={loading}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona un veicolo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Tutti i veicoli</SelectItem>
+                            {vehicles.map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                    {vehicle.name}
+                                </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                </div>
             </div>
             <StatsCards totalKm={totalKm} totalHours={totalHours} pendingInterventions={pendingInterventions} />
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
