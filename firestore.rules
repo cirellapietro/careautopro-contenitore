@@ -5,22 +5,18 @@ service cloud.firestore {
 
     /**
      * Core Philosophy: This ruleset enforces a strict user-ownership model where all user-generated data
-     * is isolated and accessible only by the user who created it. The primary security mechanism is
-     * path-based authorization, nesting all private data under a path containing the user's unique ID (`/users/{userId}`).
+     * is isolated and accessible only by the user who created it, with an override for 'Amministratore' roles.
+     * The primary security mechanisms are path-based authorization and role-based access control (RBAC).
      *
-     * Data Structure: Data is segregated into two main categories:
-     * 1. Private User Data: Stored under `/users/{userId}/...`, this includes user profiles, vehicles, alerts, and vehicle-specific subcollections.
-     * 2. Public Global Data: Stored in top-level collections like `/vehicleTypes`, this data is read-only for clients and is intended to be managed by administrators.
+     * Data Structure: Data is segregated into:
+     * 1. Private User Data: Stored under `/users/{userId}/...`, accessible by the owner or an admin.
+     * 2. Public Global Data: Stored in top-level collections like `/vehicleTypes`, read-only for clients but managed by admins.
      *
      * Key Security Decisions:
-     * - User data is strictly private. A user can only ever access documents within their own `/users/{userId}` data tree.
-     * - Listing of top-level user documents (`/users`) is disallowed to prevent user enumeration.
-     * - Public data collections (`/vehicleTypes` and its subcollections) are globally readable but are not writeable by any client to protect shared application data. An exception is made for `create` operations by signed-in users to allow for initial database seeding.
-     * - Deleting a user's root document (`/users/{userId}`) is disallowed from the client-side to prevent accidental self-destruction of all user data.
-     *
-     * Denormalization for Authorization: To ensure fast and secure rules, relational integrity is enforced on document creation. For example, when a user creates a vehicle under their own path (`/users/{userId}/vehicles/{vehicleId}`), the rule validates that the `vehicle` document itself contains a `userId` field that matches the `{userId}` from the path. This creates a strong, explicit link of ownership within the data itself.
-     *
-     * Structural Segregation: The ruleset leverages separate collections for private and public data. User-specific vehicle information is in `/users/{userId}/vehicles`, while generic vehicle type definitions are in the public `/vehicleTypes` collection. This separation makes it easy to apply broad security policies (e.g., public read vs. private owner-only) and simplifies securing list queries.
+     * - User data is private to the owner, but administrators have universal read/write access for management purposes.
+     * - Listing of top-level user documents (`/users`) is allowed only for administrators to prevent user enumeration by standard users.
+     * - Public data collections are globally readable but are writeable only by administrators to protect shared application data.
+     * - Deleting a user's root document (`/users/{userId}`) is disallowed from the client-side to prevent accidental data destruction.
      */
 
     // =====================================================================
@@ -43,11 +39,11 @@ service cloud.firestore {
     }
 
     /**
-     * Returns true if the user is the owner and the document already exists.
-     * Used for safe update and delete operations.
+     * Returns true if the requesting user has the 'Amministratore' role.
+     * This function reads the user's own document to check their role.
      */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Amministratore';
     }
 
     /**
@@ -97,114 +93,100 @@ service cloud.firestore {
     // =====================================================================
 
     /**
-     * @description Manages user profile documents. A user can create and update their own profile, but cannot view other profiles or delete their own account.
+     * @description Manages user profile documents. A user can read/update their own profile. Admins can read/update any profile. Only admins can list all users.
      * @path /users/{userId}
-     * @allow (create) a new user with auth UID 'user_abc' creating their own document at `/users/user_abc`.
-     * @deny (get) user 'user_abc' trying to read `/users/user_xyz`.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     * @allow (get) user 'user_abc' reading their own profile, or an admin reading any profile.
+     * @deny (list) a standard user trying to list all users.
+     * @principle Restricts access to a user's own data, with an admin override. Prevents user enumeration by non-admins.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Disallow listing/querying all users.
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && isCreatingOwnUserDoc(userId);
-      allow update: if isExistingOwner(userId) && isUserDocIdImmutable();
+      allow update: if (isOwner(userId) || isAdmin()) && resource != null && isUserDocIdImmutable();
       allow delete: if false; // Prevent users from deleting their own accounts.
     }
 
     /**
-     * @description Secures a user's vehicle documents. Only the owner can create, read, update, or delete their own vehicles.
+     * @description Secures a user's vehicle documents. Owner or admin can perform all actions except create, which is owner-only.
      * @path /users/{userId}/vehicles/{vehicleId}
-     * @allow (create) user 'user_abc' adding a new vehicle under `/users/user_abc/vehicles/`.
-     * @deny (list) user 'user_abc' trying to list vehicles under `/users/user_xyz/vehicles/`.
-     * @principle Enforces strict ownership for all vehicle data.
+     * @allow (list) user 'user_abc' listing their own vehicles, or an admin listing any user's vehicles.
+     * @deny (create) an admin trying to create a vehicle for another user.
+     * @principle Enforces strict ownership for creation, with admin overrides for management.
      */
     match /users/{userId}/vehicles/{vehicleId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && newDocHasCorrectOwner(userId);
-      allow update: if isExistingOwner(userId) && ownerIdIsImmutable();
-      allow delete: if isExistingOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && resource != null && ownerIdIsImmutable();
+      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
     }
     
     /**
-     * @description Secures a user's alert documents. Only the owner can create, read, update, or delete their own alerts.
+     * @description Secures a user's alert documents. Owner or admin can manage alerts.
      * @path /users/{userId}/alerts/{alertId}
-     * @allow (update) user 'user_abc' marking an alert as read under `/users/user_abc/alerts/{alertId}`.
-     * @deny (create) user 'user_abc' trying to create an alert for user 'user_xyz'.
-     * @principle Enforces strict ownership for user notifications.
+     * @allow (update) user 'user_abc' or an admin marking an alert as read.
+     * @deny (create) a standard user trying to create an alert for another user.
+     * @principle Enforces strict ownership for creation, with admin overrides for management.
      */
     match /users/{userId}/alerts/{alertId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && newDocHasCorrectOwner(userId);
-      allow update: if isExistingOwner(userId) && ownerIdIsImmutable();
-      allow delete: if isExistingOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && resource != null && ownerIdIsImmutable();
+      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
     }
 
     /**
-     * @description Secures all subcollections related to a specific vehicle. This includes maintenance, tracking sessions, and statistics. Access is granted based on ownership of the parent vehicle.
+     * @description Secures all subcollections related to a specific vehicle (e.g., maintenance). Owner or admin can manage these documents.
      * @path /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId}
-     * @allow (get) user 'user_abc' reading a maintenance intervention at `/users/user_abc/vehicles/v1/maintenanceInterventions/m1`.
-     * @deny (delete) user 'user_xyz' trying to delete a tracking session at `/users/user_abc/vehicles/v1/trackingSessions/s1`.
-     * @principle Leverages path-based security to efficiently protect nested data without extra reads.
+     * @allow (get) user 'user_abc' or an admin reading a maintenance intervention.
+     * @deny (create) an admin trying to create a maintenance record for another user's vehicle.
+     * @principle Leverages path-based security and RBAC to protect nested data.
      */
     match /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && newDocHasCorrectVehicleId(vehicleId);
-      allow update: if isExistingOwner(userId) && vehicleIdIsImmutable();
-      allow delete: if isExistingOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && resource != null && vehicleIdIsImmutable();
+      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
     }
 
     // =====================================================================
-    // Public Data Rules
+    // Public & Admin-Managed Data Rules
     // =====================================================================
 
     /**
-     * @description Manages global, read-only application configuration.
+     * @description Manages global, read-only application configuration. Writable only by admins.
      * @path /config/{configId}
-     * @allow (get) any user, signed in or not, reading the app config.
-     * @deny (write) any client. This data is admin-managed.
-     * @principle Protects shared application settings by making them read-only for clients.
+     * @allow (get) any user reading the app config.
+     * @deny (write) any non-admin client.
+     * @principle Protects shared application settings by restricting writes to admins.
      */
     match /config/{configId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Manages vehicle type definitions (e.g., Petrol, Diesel). This is public, read-only data for all users, but can be created by any signed-in user if the collection is empty.
+     * @description Manages vehicle type definitions. Publicly readable, but writable only by admins.
      * @path /vehicleTypes/{vehicleTypeId}
-     * @allow (get) any user, signed in or not, reading a vehicle type.
-     * @allow (create) any signed-in user, to allow for initial database seeding.
-     * @deny (update, delete) any client. This data is admin-managed after creation.
-     * @principle Protects shared application data by making it read-only for clients post-creation.
+     * @allow (get) any user reading a vehicle type.
+     * @deny (create, update, delete) any non-admin client.
+     * @principle Protects shared taxonomy data by restricting writes to admins.
      */
     match /vehicleTypes/{vehicleTypeId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Manages standard maintenance checks associated with a vehicle type. This is public, read-only data.
+     * @description Manages standard maintenance checks for a vehicle type. Publicly readable, but writable only by admins.
      * @path /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId}
-     * @allow (list) any user, signed in or not, listing all maintenance checks for a given vehicle type.
-     * @allow (create) any signed-in user, to allow for initial database seeding.
-     * @deny (update, delete) any client. This data is admin-managed after creation.
-     * @principle Protects shared application data by making it read-only for clients post-creation.
+     * @allow (list) any user listing maintenance checks for a vehicle type.
+     * @deny (create, update, delete) any non-admin client.
+     * @principle Protects shared maintenance plan data by restricting writes to admins.
      */
     match /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
   }
 }

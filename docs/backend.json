@@ -24,6 +24,14 @@
           "description": "URL of the user's profile picture.",
           "format": "uri"
         },
+        "role": {
+          "type": "string",
+          "description": "The role of the user.",
+          "enum": [
+            "Utente",
+            "Amministratore"
+          ]
+        },
         "notificationChannels": {
           "type": "array",
           "description": "Preferred channels for notifications.",
@@ -47,7 +55,8 @@
       "required": [
         "id",
         "email",
-        "displayName"
+        "displayName",
+        "role"
       ]
     },
     "Vehicle": {
@@ -608,6 +617,8 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and ease of debugging, adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters). The structure emphasizes path-based ownership and denormalization of authorization data to avoid hierarchical authorization dependencies and facilitate atomic operations.\\n\\n1.  **Authorization Independence:** This is achieved primarily through denormalization. For example, the `/users/{userId}/vehicles/{vehicleId}` path establishes clear ownership. Any data requiring authorization based on vehicle attributes (e.g., maintenance interventions) will include the `userId` as a field, removing the need to fetch parent data. For collaborative scenarios (if any), a `members` map would be denormalized into relevant subcollections.\\n\\n2.  **Clarity of Intent:** The path structure clearly reflects the relationships between entities. For instance, `/users/{userId}/vehicles/{vehicleId}/maintenanceInterventions/{interventionId}` explicitly shows that maintenance interventions belong to a specific vehicle owned by a specific user. This makes the intent of the security rules more transparent.\\n\\n3.  **DBAC (Database-Based Access Control):** User roles are not explicitly defined in this structure, because the user is assigned as the owner of the document. This uses the `request.auth.uid` to validate ownership for private data (vehicles, maintenance records, alerts).\\n\\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data with different access needs. Path-based ownership (`/users/{userId}/vehicles`) ensures that listing vehicles under a user is inherently secure, as rules can simply check if `request.auth.uid == userId`. Segregation also applies to global data; vehicle types and their maintenance checks are in separate collections, allowing open read access while user-specific data remains protected.\\n\\n5.  **Invariants:** The structure supports data integrity by making ownership explicit in the path. Timestamps for alerts are directly stored in the alert documents, which simplifies their management and querying. Denormalized data, such as the `userId` in `MaintenanceIntervention`, enforces the invariant that every intervention is tied to a specific user's vehicle, and thus controlled by the user."
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and ease of debugging, adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters). The structure emphasizes path-based ownership and denormalization of authorization data to avoid hierarchical authorization dependencies and facilitate atomic operations.\\n\\n1.  **Authorization Independence:** This is achieved primarily through denormalization. For example, the `/users/{userId}/vehicles/{vehicleId}` path establishes clear ownership. Any data requiring authorization based on vehicle attributes (e.g., maintenance interventions) will include the `userId` as a field, removing the need to fetch parent data. For collaborative scenarios (if any), a `members` map would be denormalized into relevant subcollections.\\n\\n2.  **Clarity of Intent:** The path structure clearly reflects the relationships between entities. For instance, `/users/{userId}/vehicles/{vehicleId}/maintenanceInterventions/{interventionId}` explicitly shows that maintenance interventions belong to a specific vehicle owned by a specific user. This makes the intent of the security rules more transparent.\\n\\n3.  **DBAC (Database-Based Access Control):** User roles are now explicitly defined in the User entity, allowing for role-based access control. The `isAdmin()` function in the security rules leverages this 'role' field to grant privileged access to administrators across the database, while standard users remain confined to their own data via path-based ownership rules (`isOwner()`).\\n\\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data with different access needs. Path-based ownership (`/users/{userId}/vehicles`) ensures that listing vehicles under a user is inherently secure for the owner. For administrators, the `isAdmin()` check allows them to list documents across user boundaries, like listing all users in the `/users` collection, which is denied to regular users.\\n\\n5.  **Invariants:** The structure supports data integrity by making ownership explicit in the path. Timestamps for alerts are directly stored in the alert documents, which simplifies their management and querying. Denormalized data, such as the `userId` in `MaintenanceIntervention`, enforces the invariant that every intervention is tied to a specific user's vehicle, and thus controlled by the user or an administrator."
   }
 }
+
+    

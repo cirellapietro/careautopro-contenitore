@@ -1,15 +1,55 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from 'firebase/firestore';
+import type { User } from '@/lib/types';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function AdminUsersPage() {
-  const { user } = useUser();
+  const { user: currentUser, loading: userLoading } = useUser();
+  const { firestore } = useFirebase();
+  const router = useRouter();
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || currentUser?.role !== 'Amministratore') return null;
+    return collection(firestore, 'users');
+  }, [firestore, currentUser]);
+
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);
+
+  useEffect(() => {
+    if (!userLoading && (!currentUser || currentUser.role !== 'Amministratore')) {
+      router.push('/dashboard');
+    }
+  }, [currentUser, userLoading, router]);
+
+  if (userLoading || !currentUser || currentUser.role !== 'Amministratore') {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -19,15 +59,56 @@ export default function AdminUsersPage() {
         </div>
       <Card>
         <CardHeader>
-          <CardTitle>Utenti</CardTitle>
+          <CardTitle>Elenco Utenti</CardTitle>
           <CardDescription>
-            Pagina in costruzione. Qui potrai gestire gli utenti.
+            Visualizza e gestisci gli account degli utenti.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {user && <p>Utente corrente: {user.email}</p>}
+          {usersLoading && !users ? (
+             <div className="flex h-48 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Utente</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Ruolo</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users && users.map(user => (
+                  <TableRow key={user.uid}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
+                          <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{user.displayName || 'N/A'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.role === 'Amministratore' ? 'destructive' : 'secondary'}>
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <Button variant="outline" size="sm">Gestisci</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
   )
 }
+
+    
