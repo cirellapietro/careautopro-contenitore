@@ -22,6 +22,7 @@ import { seedDatabase } from '@/lib/seed';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
 import { UpdateMileageDialog } from '@/components/dashboard/update-mileage-dialog';
+import { calculateDistance } from '@/lib/utils';
 
 type VehicleWithStats = Vehicle & {
     dailyKms: number;
@@ -40,7 +41,10 @@ export default function VehiclesPage() {
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
     const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
     const [isMileageModalOpen, setMileageModalOpen] = useState(false);
-    const trackingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // Refs for GPS tracking
+    const watchIdRef = useRef<number | null>(null);
+    const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
 
     const vehiclesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -49,38 +53,73 @@ export default function VehiclesPage() {
 
     const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery);
 
-    // Effect for mileage update simulation
+    // Effect for real GPS tracking
     useEffect(() => {
-        if (trackingIntervalRef.current) {
-            clearInterval(trackingIntervalRef.current);
-        }
-
-        if (trackedVehicleId) {
-            trackingIntervalRef.current = setInterval(() => {
-                setVehiclesWithStats(prevStats => 
-                    prevStats.map(v => {
-                        if (v.id === trackedVehicleId) {
-                            // Simulate adding 1km every 5 seconds
-                            const newMileage = v.currentMileage + 1;
-                            const newDailyKms = v.dailyKms + 1;
-                            // 5 seconds in minutes
-                            const newDailyTime = v.dailyTime + (5 / 60);
-                            return { ...v, currentMileage: newMileage, dailyKms: newDailyKms, dailyTime: newDailyTime, isAverage: false };
-                        }
-                        return v;
-                    })
-                );
-                // NOTE: This simulation does not write to Firestore continuously to avoid excessive writes.
-                // The final mileage is saved when tracking is stopped.
-            }, 5000);
-        }
-
-        return () => {
-            if (trackingIntervalRef.current) {
-                clearInterval(trackingIntervalRef.current);
+        // Cleanup function to stop tracking
+        const stopTracking = () => {
+            if (watchIdRef.current && navigator.geolocation) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+                lastPositionRef.current = null;
             }
         };
-    }, [trackedVehicleId]);
+
+        if (trackedVehicleId) {
+            if (!navigator.geolocation) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Errore GPS',
+                    description: 'La geolocalizzazione non è supportata da questo browser.',
+                });
+                setTrackedVehicleId(null);
+                return;
+            }
+
+            const watchOptions: PositionOptions = { enableHighAccuracy: true };
+
+            watchIdRef.current = navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+
+                    if (lastPositionRef.current) {
+                        const distanceIncrement = calculateDistance(
+                            lastPositionRef.current.latitude,
+                            lastPositionRef.current.longitude,
+                            latitude,
+                            longitude
+                        );
+
+                        setVehiclesWithStats(prevStats => 
+                            prevStats.map(v => {
+                                if (v.id === trackedVehicleId) {
+                                    const newMileage = v.currentMileage + distanceIncrement;
+                                    const newDailyKms = v.dailyKms + distanceIncrement;
+                                    return { ...v, currentMileage: newMileage, dailyKms: newDailyKms, isAverage: false };
+                                }
+                                return v;
+                            })
+                        );
+                    }
+                    lastPositionRef.current = position.coords;
+                },
+                (error) => {
+                    let errorMessage = "Impossibile ottenere la posizione.";
+                    if (error.code === error.PERMISSION_DENIED) {
+                        errorMessage = "Hai negato il permesso per la geolocalizzazione. Per usare questa funzione, abilitalo nelle impostazioni del browser.";
+                    }
+                    toast({
+                        variant: 'destructive',
+                        title: 'Errore GPS',
+                        description: errorMessage,
+                    });
+                    setTrackedVehicleId(null); // Turn off the switch
+                },
+                watchOptions
+            );
+        }
+
+        return stopTracking;
+    }, [trackedVehicleId, toast]);
 
 
     // Effect to fetch initial stats and show mileage prompt
@@ -140,29 +179,35 @@ export default function VehiclesPage() {
     }, [user, firestore, userVehicles, toast, vehiclesLoading]);
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
-        if (isChecked) {
-            toast({
-                title: `Tracking attivato per ${vehiclesWithStats.find(v => v.id === vehicleId)?.name}`,
-                description: "Il chilometraggio verrà aggiornato in tempo reale.",
-            });
-            setTrackedVehicleId(vehicleId);
-        } else {
-            if (trackedVehicleId === vehicleId) {
-                // Save final mileage to Firestore
-                const vehicle = vehiclesWithStats.find(v => v.id === vehicleId);
-                if (vehicle && firestore && user) {
-                    const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
-                    const batch = writeBatch(firestore);
-                    batch.update(vehicleRef, { currentMileage: vehicle.currentMileage });
-                    batch.commit()
-                     .then(() => toast({ title: "Chilometraggio aggiornato!" }))
-                     .catch(e => {
-                        console.error("Failed to update mileage", e)
-                        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare il chilometraggio finale.'})
-                    });
-                }
-                setTrackedVehicleId(null);
+        const previouslyTrackedId = trackedVehicleId;
+
+        if (!isChecked && previouslyTrackedId === vehicleId) {
+            const vehicle = vehiclesWithStats.find(v => v.id === vehicleId);
+            if (vehicle && firestore && user) {
+                const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
+                const batch = writeBatch(firestore);
+                batch.update(vehicleRef, { currentMileage: vehicle.currentMileage });
+                batch.commit()
+                 .then(() => toast({ title: "Chilometraggio aggiornato!" }))
+                 .catch(e => {
+                    console.error("Failed to update mileage", e)
+                    toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare il chilometraggio finale.'})
+                });
             }
+            setTrackedVehicleId(null);
+        } else if (isChecked) {
+            if (previouslyTrackedId && previouslyTrackedId !== vehicleId) {
+                const previousVehicle = vehiclesWithStats.find(v => v.id === previouslyTrackedId);
+                 if (previousVehicle && firestore && user) {
+                    const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, previouslyTrackedId);
+                    writeBatch(firestore).update(vehicleRef, { currentMileage: previousVehicle.currentMileage }).commit();
+                }
+            }
+            setTrackedVehicleId(vehicleId);
+             toast({
+                title: `Tracking attivato per ${vehiclesWithStats.find(v => v.id === vehicleId)?.name}`,
+                description: "Il browser chiederà il permesso di accedere alla tua posizione.",
+            });
         }
     };
     
@@ -205,8 +250,8 @@ export default function VehiclesPage() {
                     <CardDescription className="flex items-start gap-2 pt-2">
                         <Info className="h-4 w-4 mt-1 flex-shrink-0 text-accent" />
                         <span>
-                            Attiva il tracking per un veicolo alla volta per simulare l'aggiornamento del chilometraggio.
-                            Verrà registrata solo la distanza percorsa, non la tua posizione, nel rispetto della tua privacy.
+                            Attiva il tracking per un veicolo per registrare il chilometraggio usando il GPS del tuo dispositivo.
+                            Verrà registrata solo la distanza percorsa per aggiornare i dati del veicolo, non la tua posizione, nel pieno rispetto della tua privacy.
                         </span>
                     </CardDescription>
                 </CardHeader>
@@ -291,3 +336,5 @@ export default function VehiclesPage() {
         </div>
     );
 }
+
+    
