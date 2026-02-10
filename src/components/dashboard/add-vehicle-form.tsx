@@ -9,7 +9,6 @@ import { useFirebase } from '@/firebase';
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   writeBatch,
 } from 'firebase/firestore';
@@ -42,6 +41,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import type { VehicleType, MaintenanceCheck } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
@@ -70,10 +70,12 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const { user } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingTypes, setLoadingTypes] = useState(true);
+  const [newVehicleId, setNewVehicleId] = useState<string | null>(null);
 
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
@@ -111,6 +113,18 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     };
     fetchVehicleTypes();
   }, [firestore, toast]);
+
+  const handleClose = () => {
+    onOpenChange(false);
+    // Wait for dialog close animation before resetting state
+    setTimeout(() => {
+        setNewVehicleId(null);
+        form.reset({
+            year: new Date().getFullYear(),
+        });
+        setIsSubmitting(false);
+    }, 300);
+  };
 
   const onSubmit = async (values: AddVehicleFormValues) => {
     if (!user || !firestore || !selectedVehicleType) return;
@@ -168,8 +182,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         title: 'Successo!',
         description: 'Veicolo aggiunto e interventi iniziali generati.',
       });
-      form.reset();
-      onOpenChange(false);
+      setNewVehicleId(newVehicleRef.id);
     } catch (error) {
       console.error('Error adding vehicle:', error);
       toast({
@@ -183,149 +196,181 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+            handleClose();
+        } else {
+            onOpenChange(true);
+        }
+    }}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Aggiungi Nuovo Veicolo</DialogTitle>
-          <DialogDescription>
-            Inserisci i dettagli del tuo veicolo. Verranno generati
-            automaticamente gli interventi di manutenzione di base, che potrai
-            visualizzare e aggiornare dalla pagina di dettaglio del veicolo.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Nome veicolo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Es. Berlina Blu" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="make"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Marca</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Es. Fiat" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="model"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Modello</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Es. Tipo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="year"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Anno</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="licensePlate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Targa</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Es. AB123CD" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="vehicleTypeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo di veicolo</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={loadingTypes}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={loadingTypes ? "Caricamento..." : "Seleziona un tipo"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {vehicleTypes.map((vt) => (
-                        <SelectItem key={vt.id} value={vt.id}>
-                          {vt.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="currentMileage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Chilometraggio attuale (opzionale)</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="Es. 45000" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {selectedVehicleType && !form.getValues('currentMileage')
-                      ? `Se non specificato, verrà usata una media di ${selectedVehicleType.averageAnnualMileage.toLocaleString('it-IT')} km.`
-                      : 'Inserisci i km attuali per una maggiore precisione.'}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Annulla
-              </Button>
-              <Button type="submit" disabled={isSubmitting || loadingTypes}>
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Aggiungi Veicolo
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        {newVehicleId ? (
+            <>
+                <DialogHeader>
+                  <DialogTitle>Veicolo Aggiunto con Successo!</DialogTitle>
+                  <DialogDescription>
+                    Ottimo! Ora, per una gestione perfetta, ti consigliamo di aggiornare gli interventi di manutenzione che abbiamo creato per te. Inserisci le tue scadenze reali (es. data scadenza assicurazione, revisione, ultimo tagliando) per ricevere promemoria puntuali.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="sm:justify-start gap-2 pt-4">
+                    <Button
+                        onClick={() => {
+                            router.push(`/dashboard/vehicles/${newVehicleId}`);
+                            handleClose();
+                        }}
+                    >
+                        Vai al Veicolo e Aggiorna
+                    </Button>
+                    <Button variant="outline" onClick={handleClose}>
+                        Più Tardi
+                    </Button>
+                </DialogFooter>
+            </>
+        ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Aggiungi Nuovo Veicolo</DialogTitle>
+                <DialogDescription>
+                  Inserisci i dettagli del tuo veicolo. Verranno generati
+                  automaticamente gli interventi di manutenzione di base, che potrai
+                  visualizzare e aggiornare dalla pagina di dettaglio del veicolo.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Nome veicolo</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Es. Berlina Blu" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="make"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Marca</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Es. Fiat" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="model"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Modello</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Es. Tipo" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="year"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Anno</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="licensePlate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Targa</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Es. AB123CD" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="vehicleTypeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo di veicolo</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={loadingTypes}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={loadingTypes ? "Caricamento..." : "Seleziona un tipo"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {vehicleTypes.map((vt) => (
+                              <SelectItem key={vt.id} value={vt.id}>
+                                {vt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="currentMileage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chilometraggio attuale (opzionale)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="Es. 45000" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          {selectedVehicleType && !form.getValues('currentMileage')
+                            ? `Se non specificato, verrà usata una media di ${selectedVehicleType.averageAnnualMileage.toLocaleString('it-IT')} km.`
+                            : 'Inserisci i km attuali per una maggiore precisione.'}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenChange(false)}
+                      disabled={isSubmitting}
+                    >
+                      Annulla
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting || loadingTypes}>
+                      {isSubmitting && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Aggiungi Veicolo
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </>
+        )}
       </DialogContent>
     </Dialog>
   );
