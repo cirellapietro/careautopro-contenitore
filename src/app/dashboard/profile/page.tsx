@@ -15,14 +15,13 @@ import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import type { NotificationChannel } from '@/lib/types';
 
 
 const notificationSchema = z.object({
   notificationChannels: z.array(z.string()).min(1, "Seleziona almeno un canale."),
-  notificationReminderTime: z.coerce.number(),
+  notificationReminderTime: z.coerce.number().min(0, "L'anticipo non può essere negativo."),
 });
 
 const notificationChannels: { id: NotificationChannel, label: string }[] = [
@@ -164,19 +163,13 @@ export default function ProfilePage() {
                                 name="notificationReminderTime"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Anticipo promemoria</FormLabel>
-                                    <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
-                                        <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleziona un anticipo" />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                        <SelectItem value="1">1 giorno prima</SelectItem>
-                                        <SelectItem value="3">3 giorni prima</SelectItem>
-                                        <SelectItem value="7">7 giorni prima</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <FormLabel>Anticipo promemoria (giorni)</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" placeholder="Es. 3" {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                      Quanti giorni prima della scadenza vuoi ricevere un promemoria.
+                                    </FormDescription>
                                     <FormMessage />
                                     </FormItem>
                                 )}
