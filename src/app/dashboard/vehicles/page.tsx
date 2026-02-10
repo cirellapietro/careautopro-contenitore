@@ -243,24 +243,47 @@ export default function VehiclesPage() {
             </div>
              <AddVehicleForm open={isAddVehicleOpen} onOpenChange={setAddVehicleOpen} />
              {userVehicles && <UpdateMileageDialog open={isMileageModalOpen} onOpenChange={setMileageModalOpen} vehicles={userVehicles} />}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Elenco Veicoli</CardTitle>
-                    <CardDescription className="flex items-start gap-2 pt-2">
-                        <Info className="h-4 w-4 mt-1 flex-shrink-0 text-accent" />
-                        <span>
-                            Attiva il tracking per un veicolo per registrare il chilometraggio usando il GPS del tuo dispositivo.
-                            Verrà registrata solo la distanza percorsa per aggiornare i dati del veicolo, non la tua posizione, nel pieno rispetto della tua privacy.
-                        </span>
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                         <div className="flex min-h-[200px] w-full flex-col items-center justify-center">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                            <p className="mt-4 text-muted-foreground">Caricamento veicoli...</p>
+
+            {loading ? (
+                <div className="flex min-h-[200px] w-full flex-col items-center justify-center">
+                   <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                   <p className="mt-4 text-muted-foreground">Caricamento veicoli...</p>
+               </div>
+            ) : vehiclesWithStats.length === 0 ? (
+                <Card>
+                    <CardContent className="h-48 text-center flex flex-col items-center justify-center p-6">
+                        <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
+                        <p className="text-muted-foreground mt-2 max-w-lg">Aggiungi il tuo primo veicolo per iniziare. Per ogni veicolo inserito, l'app genererà automaticamente un piano di manutenzione iniziale basato sul tipo di veicolo, includendo scadenze importanti come revisione e assicurazione, per aiutarti a creare il tuo storico di manutenzione.</p>
+                        <div className="mt-4 flex justify-center gap-4">
+                            <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
+                                {isSeeding ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Caricamento...
+                                    </>
+                                ) : (
+                                    "Popola con dati di esempio"
+                                )}
+                            </Button>
+                             <Button onClick={() => setAddVehicleOpen(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
+                            </Button>
                         </div>
-                    ) : (
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Elenco Veicoli</CardTitle>
+                        <CardDescription className="flex items-start gap-2 pt-2">
+                            <Info className="h-4 w-4 mt-1 flex-shrink-0 text-accent" />
+                            <span>
+                                Attiva il tracking per un veicolo per registrare il chilometraggio usando il GPS del tuo dispositivo.
+                                Verrà registrata solo la distanza percorsa per aggiornare i dati del veicolo, non la tua posizione, nel pieno rispetto della tua privacy.
+                            </span>
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -274,7 +297,7 @@ export default function VehiclesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {vehiclesWithStats.length > 0 ? vehiclesWithStats.map((vehicle) => (
+                            {vehiclesWithStats.map((vehicle) => (
                                 <TableRow key={vehicle.id}>
                                     <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
@@ -306,34 +329,12 @@ export default function VehiclesPage() {
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            )) : (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="h-48 text-center">
-                                        <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
-                                        <p className="text-muted-foreground mt-2">Aggiungi il tuo primo veicolo per iniziare. Per ogni veicolo inserito, l'app genererà automaticamente un piano di manutenzione iniziale basato sul tipo di veicolo, includendo scadenze importanti come revisione e assicurazione, per aiutarti a creare il tuo storico di manutenzione.</p>
-                                        <div className="mt-4 flex justify-center gap-4">
-                                            <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
-                                                {isSeeding ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Caricamento...
-                                                    </>
-                                                ) : (
-                                                    "Popola con dati di esempio"
-                                                )}
-                                            </Button>
-                                             <Button onClick={() => setAddVehicleOpen(true)}>
-                                                <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Veicolo
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )}
+                            ))}
                         </TableBody>
                     </Table>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
