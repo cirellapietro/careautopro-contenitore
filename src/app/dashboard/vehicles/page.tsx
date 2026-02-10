@@ -311,7 +311,7 @@ export default function VehiclesPage() {
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-48 text-center">
                                         <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
-                                        <p className="text-muted-foreground mt-2">Inizia aggiungendo il tuo primo veicolo o usa i nostri dati di esempio.</p>
+                                        <p className="text-muted-foreground mt-2">Aggiungi il tuo primo veicolo per iniziare. Per ogni veicolo inserito, l'app genererà automaticamente un piano di manutenzione iniziale basato sul tipo di veicolo, includendo scadenze importanti come revisione e assicurazione, per aiutarti a creare il tuo storico di manutenzione.</p>
                                         <div className="mt-4 flex justify-center gap-4">
                                             <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
                                                 {isSeeding ? (

@@ -20,6 +20,13 @@ const vehicleTypeData: VehicleType[] = [
   { id: 'elettrica', name: 'Elettrica', averageAnnualMileage: 10000 },
 ];
 
+// Common checks for all vehicle types
+const commonChecks: Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[] = [
+    { description: 'Revisione ministeriale', intervalTime: 24, intervalMileage: undefined },
+    { description: 'Pagamento assicurazione annuale', intervalTime: 12, intervalMileage: undefined },
+    { description: 'Scadenza patente di guida', intervalTime: 120, intervalMileage: undefined },
+];
+
 const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[]> = {
   benzina: [
     { description: 'Cambio olio e filtro olio', intervalMileage: 15000, intervalTime: 12 },
@@ -27,6 +34,7 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
     { description: 'Sostituzione candele', intervalMileage: 60000, intervalTime: 48 },
     { description: 'Controllo liquido freni', intervalMileage: 30000, intervalTime: 24 },
     { description: 'Sostituzione cinghia di distribuzione', intervalMileage: 100000, intervalTime: 72 },
+    ...commonChecks,
   ],
   diesel: [
     { description: 'Cambio olio e filtro olio', intervalMileage: 20000, intervalTime: 12 },
@@ -34,18 +42,21 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
     { description: 'Controllo e sostituzione filtro aria', intervalMileage: 40000, intervalTime: 24 },
     { description: 'Controllo liquido freni', intervalMileage: 40000, intervalTime: 24 },
     { description: 'Sostituzione cinghia di distribuzione', intervalMileage: 120000, intervalTime: 72 },
+    ...commonChecks,
   ],
   ibrida: [
     { description: 'Cambio olio e filtro olio (motore termico)', intervalMileage: 15000, intervalTime: 12 },
     { description: 'Controllo stato batteria ad alta tensione', intervalMileage: 20000, intervalTime: 12 },
     { description: 'Controllo sistema frenante (frenata rigenerativa)', intervalMileage: 30000, intervalTime: 24 },
     { description: 'Sostituzione liquido raffreddamento inverter', intervalMileage: 80000, intervalTime: 60 },
+    ...commonChecks,
   ],
   elettrica: [
     { description: 'Controllo stato batteria ad alta tensione', intervalMileage: 25000, intervalTime: 12 },
     { description: 'Sostituzione liquido freni', intervalMileage: 50000, intervalTime: 24 },
     { description: 'Sostituzione filtro abitacolo', intervalMileage: 25000, intervalTime: 12 },
     { description: 'Controllo usura pneumatici', intervalMileage: 15000, intervalTime: 12 },
+    ...commonChecks,
   ],
 };
 
