@@ -189,7 +189,8 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
           <DialogTitle>Aggiungi Nuovo Veicolo</DialogTitle>
           <DialogDescription>
             Inserisci i dettagli del tuo veicolo. Verranno generati
-            automaticamente gli interventi di manutenzione di base.
+            automaticamente gli interventi di manutenzione di base, che potrai
+            visualizzare e aggiornare dalla pagina di dettaglio del veicolo.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
