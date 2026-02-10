@@ -34,12 +34,15 @@ const googleProvider = new GoogleAuthProvider();
 async function createUserDocument(uid: string, email: string | null, displayName: string | null, photoURL: string | null) {
   const firestore = getFirebaseDb();
   const userRef = doc(firestore, 'users', uid);
+
+  const userRole = email === 'cirellapietro@gmail.com' ? 'Amministratore' : 'Utente';
+
   const userData = {
     id: uid,
     email: email,
     displayName: displayName,
     photoURL: photoURL,
-    role: 'Utente',
+    role: userRole,
     notificationChannels: ['app', 'email'],
     notificationReminderTime: 3, // days
   };
