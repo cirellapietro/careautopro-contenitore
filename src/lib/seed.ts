@@ -22,9 +22,9 @@ const vehicleTypeData: VehicleType[] = [
 
 // Common checks for all vehicle types
 const commonChecks: Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[] = [
-    { description: 'Revisione ministeriale', intervalTime: 24, intervalMileage: undefined },
-    { description: 'Pagamento assicurazione annuale', intervalTime: 12, intervalMileage: undefined },
-    { description: 'Scadenza patente di guida', intervalTime: 120, intervalMileage: undefined },
+    { description: 'Revisione ministeriale', intervalTime: 24 },
+    { description: 'Pagamento assicurazione annuale', intervalTime: 12 },
+    { description: 'Scadenza patente di guida', intervalTime: 120 },
 ];
 
 const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[]> = {
