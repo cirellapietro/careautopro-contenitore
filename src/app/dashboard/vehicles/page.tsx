@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { PlusCircle, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -16,11 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { seedDatabase } from '@/lib/seed';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
+import { UpdateMileageDialog } from '@/components/dashboard/update-mileage-dialog';
 
 type VehicleWithStats = Vehicle & {
     dailyKms: number;
@@ -38,6 +39,8 @@ export default function VehiclesPage() {
     const [isSeeding, setIsSeeding] = useState(false);
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
     const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
+    const [isMileageModalOpen, setMileageModalOpen] = useState(false);
+    const trackingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const vehiclesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -46,6 +49,41 @@ export default function VehiclesPage() {
 
     const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery);
 
+    // Effect for mileage update simulation
+    useEffect(() => {
+        if (trackingIntervalRef.current) {
+            clearInterval(trackingIntervalRef.current);
+        }
+
+        if (trackedVehicleId) {
+            trackingIntervalRef.current = setInterval(() => {
+                setVehiclesWithStats(prevStats => 
+                    prevStats.map(v => {
+                        if (v.id === trackedVehicleId) {
+                            // Simulate adding 1km every 5 seconds
+                            const newMileage = v.currentMileage + 1;
+                            const newDailyKms = v.dailyKms + 1;
+                            // 5 seconds in minutes
+                            const newDailyTime = v.dailyTime + (5 / 60);
+                            return { ...v, currentMileage: newMileage, dailyKms: newDailyKms, dailyTime: newDailyTime, isAverage: false };
+                        }
+                        return v;
+                    })
+                );
+                // NOTE: This simulation does not write to Firestore continuously to avoid excessive writes.
+                // The final mileage is saved when tracking is stopped.
+            }, 5000);
+        }
+
+        return () => {
+            if (trackingIntervalRef.current) {
+                clearInterval(trackingIntervalRef.current);
+            }
+        };
+    }, [trackedVehicleId]);
+
+
+    // Effect to fetch initial stats and show mileage prompt
     useEffect(() => {
         if (!userVehicles) {
             setStatsLoading(false);
@@ -54,42 +92,36 @@ export default function VehiclesPage() {
         };
 
         if (userVehicles.length > 0 && trackedVehicleId === null) {
-            setTrackedVehicleId(userVehicles[0].id);
+            if (!sessionStorage.getItem('mileagePromptShown')) {
+                setMileageModalOpen(true);
+                sessionStorage.setItem('mileagePromptShown', 'true');
+            }
         } else if (userVehicles.length === 0) {
             setTrackedVehicleId(null);
         }
 
         const fetchStats = async () => {
-            if (!firestore) return;
+            if (!firestore || !user) return;
             setStatsLoading(true);
             try {
-                const today = new Date().toISOString().split('T')[0];
                 const processedVehicles: VehicleWithStats[] = [];
 
                 for (const vehicle of userVehicles) {
-                    const statsRef = collection(firestore, `users/${user!.uid}/vehicles/${vehicle.id}/dailyStatistics`);
+                    const statsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
                     const statsSnap = await getDocs(statsRef);
                     const dailyStats = statsSnap.docs.map(doc => doc.data() as DailyStat);
 
                     let dailyKms = 0;
                     let dailyTime = 0;
-                    let isAverage = true;
-
-                    if (vehicle.id === trackedVehicleId) {
-                        const todayStat = dailyStats.find(stat => stat.date === today);
-                        dailyKms = todayStat?.distance ?? 0;
-                        dailyTime = todayStat?.duration ?? 0;
-                        isAverage = false;
-                    } else {
-                        if (dailyStats.length > 0) {
-                            const totalKms = dailyStats.reduce((sum, stat) => sum + stat.distance, 0);
-                            const totalTime = dailyStats.reduce((sum, stat) => sum + stat.duration, 0);
-                            dailyKms = totalKms / dailyStats.length;
-                            dailyTime = totalTime / dailyStats.length;
-                        }
-                        isAverage = true;
+                    
+                    if (dailyStats.length > 0) {
+                        const totalKms = dailyStats.reduce((sum, stat) => sum + stat.distance, 0);
+                        const totalTime = dailyStats.reduce((sum, stat) => sum + stat.duration, 0);
+                        dailyKms = totalKms / dailyStats.length;
+                        dailyTime = totalTime / dailyStats.length;
                     }
-                    processedVehicles.push({ ...vehicle, dailyKms, dailyTime, isAverage });
+                    
+                    processedVehicles.push({ ...vehicle, dailyKms, dailyTime, isAverage: true });
                 }
                 setVehiclesWithStats(processedVehicles);
             } catch (error) {
@@ -105,13 +137,30 @@ export default function VehiclesPage() {
         };
 
         fetchStats();
-    }, [user, firestore, userVehicles, trackedVehicleId, toast]);
+    }, [user, firestore, userVehicles, toast, vehiclesLoading]);
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
         if (isChecked) {
+            toast({
+                title: `Tracking attivato per ${vehiclesWithStats.find(v => v.id === vehicleId)?.name}`,
+                description: "Il chilometraggio verrà aggiornato in tempo reale.",
+            });
             setTrackedVehicleId(vehicleId);
         } else {
             if (trackedVehicleId === vehicleId) {
+                // Save final mileage to Firestore
+                const vehicle = vehiclesWithStats.find(v => v.id === vehicleId);
+                if (vehicle && firestore && user) {
+                    const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
+                    const batch = writeBatch(firestore);
+                    batch.update(vehicleRef, { currentMileage: vehicle.currentMileage });
+                    batch.commit()
+                     .then(() => toast({ title: "Chilometraggio aggiornato!" }))
+                     .catch(e => {
+                        console.error("Failed to update mileage", e)
+                        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare il chilometraggio finale.'})
+                    });
+                }
                 setTrackedVehicleId(null);
             }
         }
@@ -149,10 +198,17 @@ export default function VehiclesPage() {
                 </Button>
             </div>
              <AddVehicleForm open={isAddVehicleOpen} onOpenChange={setAddVehicleOpen} />
+             {userVehicles && <UpdateMileageDialog open={isMileageModalOpen} onOpenChange={setMileageModalOpen} vehicles={userVehicles} />}
             <Card>
                 <CardHeader>
                     <CardTitle>Elenco Veicoli</CardTitle>
-                    <CardDescription>Gestisci i tuoi veicoli e le relative impostazioni di tracciamento. Puoi tracciare un solo veicolo alla volta.</CardDescription>
+                    <CardDescription className="flex items-start gap-2 pt-2">
+                        <Info className="h-4 w-4 mt-1 flex-shrink-0 text-accent" />
+                        <span>
+                            Attiva il tracking per un veicolo alla volta per simulare l'aggiornamento del chilometraggio.
+                            Verrà registrata solo la distanza percorsa, non la tua posizione, nel rispetto della tua privacy.
+                        </span>
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
@@ -182,11 +238,11 @@ export default function VehiclesPage() {
                                     <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
                                         {vehicle.dailyKms.toFixed(1)} km
-                                        {vehicle.isAverage && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
+                                        {vehicle.isAverage && trackedVehicleId !== vehicle.id && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
                                     </TableCell>
                                     <TableCell>
                                         {vehicle.dailyTime.toFixed(0)} min
-                                        {vehicle.isAverage && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
+                                        {vehicle.isAverage && trackedVehicleId !== vehicle.id && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Switch
