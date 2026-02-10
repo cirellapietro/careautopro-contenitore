@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { PlusCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, useCollection } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { seedDatabase } from '@/lib/seed';
@@ -39,12 +39,12 @@ export default function VehiclesPage() {
     const [trackedVehicleId, setTrackedVehicleId] = useState<string | null>(null);
     const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
 
-    const vehiclesQuery = useMemo(() => {
+    const vehiclesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         return collection(firestore, `users/${user.uid}/vehicles`);
     }, [user, firestore]);
 
-    const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery as any);
+    const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery);
 
     useEffect(() => {
         if (!userVehicles) {
@@ -235,5 +235,3 @@ export default function VehiclesPage() {
         </div>
     );
 }
-
-    
