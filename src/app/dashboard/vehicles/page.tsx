@@ -265,22 +265,23 @@ export default function VehiclesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[250px]">Veicolo</TableHead>
                                 <TableHead>Targa</TableHead>
+                                <TableHead>Nome Veicolo</TableHead>
                                 <TableHead>Km giornalieri</TableHead>
                                 <TableHead>Tempo giornaliero</TableHead>
                                 <TableHead className="text-center">Tracking GPS</TableHead>
+                                <TableHead>Tipo</TableHead>
                                 <TableHead className="text-right">Azioni</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {vehiclesWithStats.length > 0 ? vehiclesWithStats.map((vehicle) => (
                                 <TableRow key={vehicle.id}>
+                                    <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
                                         <div className="font-medium">{vehicle.name}</div>
                                         <div className="text-sm text-muted-foreground">{vehicle.make} {vehicle.model}</div>
                                     </TableCell>
-                                    <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
                                         {vehicle.dailyKms.toFixed(1)} km
                                         {vehicle.isAverage && trackedVehicleId !== vehicle.id && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
@@ -297,6 +298,7 @@ export default function VehiclesPage() {
                                             aria-label={`Attiva o disattiva il tracking GPS per ${vehicle.name}`}
                                         />
                                     </TableCell>
+                                    <TableCell>{vehicle.type}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="outline" size="sm" asChild>
                                             <Link href={`/dashboard/vehicles/${vehicle.id}`}>
@@ -307,7 +309,7 @@ export default function VehiclesPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-48 text-center">
+                                    <TableCell colSpan={7} className="h-48 text-center">
                                         <h3 className="text-lg font-semibold">Nessun veicolo trovato</h3>
                                         <p className="text-muted-foreground mt-2">Inizia aggiungendo il tuo primo veicolo o usa i nostri dati di esempio.</p>
                                         <div className="mt-4 flex justify-center gap-4">
@@ -336,5 +338,3 @@ export default function VehiclesPage() {
         </div>
     );
 }
-
-    
