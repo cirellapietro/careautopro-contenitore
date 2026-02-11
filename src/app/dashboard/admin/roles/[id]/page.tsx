@@ -25,16 +25,17 @@ const roleEditSchema = z.object({
 });
 
 export default function AdminRoleEditPage({ params }: { params: { id: string } }) {
+    const { id } = params;
     const { user: currentUser, loading: userLoading } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const router = useRouter();
-    const isNew = params.id === 'new';
+    const isNew = id === 'new';
 
     const roleRef = useMemoFirebase(() => {
         if (isNew || !firestore) return null;
-        return doc(firestore, 'roles', params.id);
-    }, [firestore, params.id, isNew]);
+        return doc(firestore, 'roles', id);
+    }, [firestore, id, isNew]);
 
     const { data: roleToEdit, isLoading: isRoleLoading } = useDoc<Role>(roleRef);
 
@@ -89,7 +90,7 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
             });
     };
 
-    if (userLoading || (isRoleLoading && !isNew)) {
+    if (userLoading || (!isNew && isRoleLoading)) {
         return (
             <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -97,7 +98,7 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         );
     }
     
-    if (!isNew && !roleToEdit && !isRoleLoading) {
+    if (!isNew && !isRoleLoading && !roleToEdit) {
         notFound();
     }
 

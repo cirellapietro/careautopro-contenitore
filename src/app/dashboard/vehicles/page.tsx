@@ -76,6 +76,40 @@ export default function VehiclesPage() {
             }
         };
 
+        const finalSave = () => {
+            const currentTrackedId = localStorage.getItem('trackedVehicleId');
+            const vehicleToSave = vehiclesWithStatsRef.current.find(v => v.id === currentTrackedId);
+
+            if (vehicleToSave && firestore && user) {
+                const batch = writeBatch(firestore);
+                    
+                const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleToSave.id);
+                batch.update(vehicleRef, { currentMileage: vehicleToSave.currentMileage });
+                
+                const today = new Date().toISOString().split('T')[0];
+                const statRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleToSave.id}/dailyStatistics`, today);
+                const statData = {
+                    vehicleId: vehicleToSave.id,
+                    date: today,
+                    distance: vehicleToSave.dailyKms,
+                    duration: vehicleToSave.dailyTime
+                };
+                batch.set(statRef, statData, { merge: true });
+
+                batch.commit().catch(serverError => {
+                    const permissionError = new FirestorePermissionError({
+                        path: statRef.path,
+                        operation: 'write',
+                        requestResourceData: {
+                            vehicleUpdate: { currentMileage: vehicleToSave.currentMileage },
+                            statUpdate: statData,
+                        }
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                });
+            }
+        }
+
         if (trackedVehicleId) {
             if (!navigator.geolocation) {
                 toast({
@@ -140,74 +174,20 @@ export default function VehiclesPage() {
                         return v;
                     })
                 );
-
-                const vehicleToSave = vehiclesWithStatsRef.current.find(v => v.id === trackedVehicleId);
-                if (vehicleToSave && firestore && user) {
-                    const batch = writeBatch(firestore);
-                    
-                    const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, trackedVehicleId);
-                    batch.update(vehicleRef, { currentMileage: vehicleToSave.currentMileage });
-                    
-                    const today = new Date().toISOString().split('T')[0];
-                    const statRef = doc(firestore, `users/${user.uid}/vehicles/${trackedVehicleId}/dailyStatistics`, today);
-                    const statData = {
-                        vehicleId: trackedVehicleId,
-                        date: today,
-                        distance: vehicleToSave.dailyKms,
-                        duration: vehicleToSave.dailyTime
-                    };
-                    batch.set(statRef, statData, { merge: true });
-
-                    batch.commit().catch(serverError => {
-                        const permissionError = new FirestorePermissionError({
-                            path: statRef.path,
-                            operation: 'write',
-                            requestResourceData: {
-                                vehicleUpdate: { currentMileage: vehicleToSave.currentMileage },
-                                statUpdate: statData,
-                            }
-                        });
-                        errorEmitter.emit('permission-error', permissionError);
-                    });
-                }
-            }, 1000); // Update every second for smoother time display, save every minute.
+            }, 1000); 
 
         }
 
         const periodicSaveInterval = setInterval(() => {
-            const currentTrackedId = localStorage.getItem('trackedVehicleId');
-            const vehicleToSave = vehiclesWithStatsRef.current.find(v => v.id === currentTrackedId);
-            if (vehicleToSave && firestore && user) {
-                 const batch = writeBatch(firestore);
-                    
-                const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleToSave.id);
-                batch.update(vehicleRef, { currentMileage: vehicleToSave.currentMileage });
-                
-                const today = new Date().toISOString().split('T')[0];
-                const statRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleToSave.id}/dailyStatistics`, today);
-                const statData = {
-                    vehicleId: vehicleToSave.id,
-                    date: today,
-                    distance: vehicleToSave.dailyKms,
-                    duration: vehicleToSave.dailyTime
-                };
-                batch.set(statRef, statData, { merge: true });
-
-                batch.commit().catch(serverError => {
-                    const permissionError = new FirestorePermissionError({
-                        path: statRef.path,
-                        operation: 'write',
-                        requestResourceData: {
-                            vehicleUpdate: { currentMileage: vehicleToSave.currentMileage },
-                            statUpdate: statData,
-                        }
-                    });
-                    errorEmitter.emit('permission-error', permissionError);
-                });
+            if (localStorage.getItem('trackedVehicleId')) {
+                finalSave();
             }
-        }, 60000); // Save every 60 seconds
+        }, 10000); // Save every 10 seconds
 
         return () => {
+            if (localStorage.getItem('trackedVehicleId')) {
+                finalSave();
+            }
             stopTracking();
             clearInterval(periodicSaveInterval);
         };
