@@ -39,18 +39,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { VehicleType, MaintenanceCheck } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
-  registrationDate: z.date({ required_error: "La data di immatricolazione è obbligatoria."}),
+  registrationDate: z.string({ required_error: "La data di immatricolazione è obbligatoria."}).min(1, "La data di immatricolazione è obbligatoria."),
   licensePlate: z
     .string()
     .min(5, { message: 'Targa non valida.' })
@@ -80,7 +75,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
-      registrationDate: new Date(),
+      registrationDate: new Date().toISOString().split('T')[0],
       name: '',
       licensePlate: '',
     },
@@ -122,7 +117,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     setTimeout(() => {
         setNewVehicleId(null);
         form.reset({
-            registrationDate: new Date(),
+            registrationDate: new Date().toISOString().split('T')[0],
             name: '',
             licensePlate: '',
             vehicleTypeId: undefined,
@@ -154,7 +149,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         ...values,
         id: newVehicleRef.id,
         userId: user.uid,
-        registrationDate: format(values.registrationDate, 'yyyy-MM-dd'),
+        registrationDate: values.registrationDate,
         make: make || '',
         model: model || '',
         type: selectedVehicleType.name,
@@ -274,33 +269,9 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                       render={({ field }) => (
                         <FormItem>
                             <FormLabel>Data di immatricolazione</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant={'outline'}
-                                            className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {field.value ? (
-                                                format(field.value, 'PPP', { locale: it })
-                                            ) : (
-                                                <span>Scegli una data</span>
-                                            )}
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        locale={it}
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                            <FormControl>
+                                <Input type="date" {...field} />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                       )}
