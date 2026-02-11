@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useEffect } from 'react';
+import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -13,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import type { Vehicle } from '@/lib/types';
-import { useEffect } from 'react';
 
 const MaintenanceAdviceSchema = z.object({
   vehicleType: z.string(),
@@ -40,7 +40,7 @@ function SubmitButton() {
 }
 
 export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
-  const [state, formAction] = useFormState(generateMaintenanceAdvice, initialState);
+  const [state, formAction] = useActionState(generateMaintenanceAdvice, initialState);
 
   const form = useForm<MaintenanceAdviceFormValues>({
     resolver: zodResolver(MaintenanceAdviceSchema),
