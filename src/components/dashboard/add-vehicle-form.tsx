@@ -75,26 +75,49 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [newVehicleId, setNewVehicleId] = useState<string | null>(null);
 
+  const [year, setYear] = useState<string>('');
+  const [month, setMonth] = useState<string>('');
+  const [day, setDay] = useState<string>('');
+
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
       name: '',
       licensePlate: '',
+      registrationDate: '',
     },
   });
 
+  // When the dialog opens, reset everything
   useEffect(() => {
     if (open) {
       form.reset({
         name: '',
         licensePlate: '',
-        registrationDate: new Date().toISOString().split('T')[0],
+        registrationDate: '',
         vehicleTypeId: undefined,
         currentMileage: undefined,
       });
+      setYear('');
+      setMonth('');
+      setDay('');
     }
   }, [open, form]);
 
+  // Combine date parts into the form field
+  useEffect(() => {
+    if (year && month && day) {
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (date.getFullYear() === parseInt(year) && date.getMonth() === parseInt(month) - 1 && date.getDate() === parseInt(day)) {
+        const combinedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        form.setValue('registrationDate', combinedDate, { shouldValidate: true });
+      } else {
+        form.setValue('registrationDate', '', { shouldValidate: true });
+      }
+    } else if (form.getValues('registrationDate') !== '') {
+        form.setValue('registrationDate', '', { shouldValidate: true });
+    }
+  }, [year, month, day, form]);
 
   const selectedTypeId = form.watch('vehicleTypeId');
   const selectedVehicleType = vehicleTypes.find(
@@ -128,7 +151,6 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
 
   const handleClose = () => {
     onOpenChange(false);
-    // Wait for dialog close animation before resetting state
     setTimeout(() => {
         setNewVehicleId(null);
         setIsSubmitting(false);
@@ -152,7 +174,6 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       const make = nameParts[0];
       const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim();
 
-      // 1. Create Vehicle
       const newVehicle = {
         ...values,
         id: newVehicleRef.id,
@@ -165,7 +186,6 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       };
       batch.set(newVehicleRef, newVehicle);
 
-      // 2. Fetch standard maintenance checks for the type
       const checksRef = collection(
         firestore,
         `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`
@@ -175,7 +195,6 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         (d) => d.data() as MaintenanceCheck
       );
 
-      // 3. Create initial interventions
       for (const check of checks) {
         const newInterventionRef = doc(
           collection(newVehicleRef, 'maintenanceInterventions')
@@ -210,6 +229,11 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     }
   };
 
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 80 }, (_, i) => currentYear - i);
+  const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: new Date(0, i).toLocaleString('it-IT', { month: 'long' }) }));
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) {
@@ -218,7 +242,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
             onOpenChange(true);
         }
     }}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         {newVehicleId ? (
             <>
                 <DialogHeader>
@@ -247,60 +271,78 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                 <DialogTitle>Aggiungi Nuovo Veicolo</DialogTitle>
                 <DialogDescription>
                   Inserisci i dettagli del tuo veicolo. Verranno generati
-                  automaticamente gli interventi di manutenzione di base, che potrai
-                  visualizzare e aggiornare dalla pagina di dettaglio del veicolo.
+                  automaticamente gli interventi di manutenzione di base.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem className="col-span-2">
-                          <FormLabel>Nome veicolo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Es. Fiat Panda (Lavoro)" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Inserisci marca, modello e un nome per identificare il veicolo.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="registrationDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data di immatricolazione</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="date"
-                              {...field}
-                              max={new Date().toISOString().split("T")[0]}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="licensePlate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Targa</FormLabel>
-                          <FormControl>
-                            <Input placeholder="ES. AB123CD" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome veicolo</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Es. Fiat Panda (Lavoro)" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Inserisci marca, modello e un nome per identificare il veicolo.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="licensePlate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Targa</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ES. AB123CD" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="registrationDate"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Data di immatricolazione</FormLabel>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Select onValueChange={setDay} value={day}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Giorno" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {days.map(d => <SelectItem key={d} value={String(d)}>{d}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Select onValueChange={setMonth} value={month}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Mese" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {months.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Select onValueChange={setYear} value={year}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Anno" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="vehicleTypeId"
