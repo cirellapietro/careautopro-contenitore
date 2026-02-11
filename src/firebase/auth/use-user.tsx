@@ -27,7 +27,9 @@ export function useUser(): UseUserHook {
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       // Clean up previous doc listener if user changes
-      if (unsubscribeDoc) unsubscribeDoc();
+      if (unsubscribeDoc) {
+        unsubscribeDoc();
+      }
 
       if (firebaseUser) {
         setLoading(true);
@@ -36,18 +38,21 @@ export function useUser(): UseUserHook {
         unsubscribeDoc = onSnapshot(userDocRef, (userDocSnap) => {
           if (userDocSnap.exists()) {
               const userData = userDocSnap.data();
+              // Combine auth data and firestore data
               setUser({
+                  // From Auth
                   uid: firebaseUser.uid,
-                  email: userData.email || firebaseUser.email,
-                  displayName: userData.displayName || firebaseUser.displayName,
-                  photoURL: userData.photoURL || firebaseUser.photoURL,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  photoURL: firebaseUser.photoURL,
+                  // From Firestore
                   role: userData.role || 'Utente',
                   notificationChannels: userData.notificationChannels || ['app', 'email'],
                   notificationReminderTime: userData.notificationReminderTime || 3,
               });
           } else {
-            // This case can happen if the user document creation failed after signup.
-            // We still create a user object from the auth details with defaults.
+            // This can happen if the user document creation is delayed or failed.
+            // Create a user object from auth details with default app-specific values.
             setUser({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
@@ -61,6 +66,8 @@ export function useUser(): UseUserHook {
           setLoading(false);
         }, (error) => {
             console.error("Error fetching user document:", error);
+            // On error, treat as if user data is not available
+            setUser(null);
             setLoading(false);
         });
       } else {
@@ -71,7 +78,9 @@ export function useUser(): UseUserHook {
 
     return () => {
         unsubscribeAuth();
-        if (unsubscribeDoc) unsubscribeDoc();
+        if (unsubscribeDoc) {
+          unsubscribeDoc();
+        }
     };
   }, [firebaseApp]);
 
