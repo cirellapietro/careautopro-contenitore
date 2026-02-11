@@ -53,13 +53,22 @@ export async function signInWithEmail(email: string, password: string): Promise<
   const authInstance = getFirebaseAuth();
   const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
 
-  // After successful sign-in, check if the user should be an admin.
+  // After successful sign-in, ensure the user document exists and the role is correct.
   if (userCredential.user && email === 'cirellapietro@gmail.com') {
     const firestore = getFirebaseDb();
     const userRef = doc(firestore, 'users', userCredential.user.uid);
-    // This ensures the role is correctly set to Amministratore on every login.
-    // Using updateDoc as we are sure the user document exists at this point.
-    await updateDoc(userRef, { role: 'Amministratore' });
+    const userDoc = await getDoc(userRef);
+
+    if (userDoc.exists()) {
+      // If doc exists, and role is not admin, update it.
+      if (userDoc.data().role !== 'Amministratore') {
+        await updateDoc(userRef, { role: 'Amministratore' });
+      }
+    } else {
+      // If doc does not exist, create it.
+      // This handles cases where auth user exists but Firestore doc creation failed.
+      await createUserDocument(userCredential.user.uid, userCredential.user.email, userCredential.user.displayName, userCredential.user.photoURL);
+    }
   }
 }
 
@@ -85,7 +94,7 @@ export async function signInWithGoogle(): Promise<void> {
     await createUserDocument(user.uid, user.email, user.displayName, user.photoURL);
   } else {
     // Existing user: explicitly check and set admin role if needed.
-    if (user.email === 'cirellapietro@gmail.com') {
+    if (user.email === 'cirellapietro@gmail.com' && docSnap.data().role !== 'Amministratore') {
         await updateDoc(userRef, { role: 'Amministratore' });
     }
   }
