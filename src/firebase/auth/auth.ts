@@ -9,7 +9,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, Firestore, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, Firestore, getDoc, updateDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '../config';
 
 let auth: Auth;
@@ -58,7 +58,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
     const firestore = getFirebaseDb();
     const userRef = doc(firestore, 'users', userCredential.user.uid);
     // This ensures the role is correctly set to Amministratore on every login.
-    await setDoc(userRef, { role: 'Amministratore' }, { merge: true });
+    // Using updateDoc as we are sure the user document exists at this point.
+    await updateDoc(userRef, { role: 'Amministratore' });
   }
 }
 
@@ -85,7 +86,7 @@ export async function signInWithGoogle(): Promise<void> {
   } else {
     // Existing user: explicitly check and set admin role if needed.
     if (user.email === 'cirellapietro@gmail.com') {
-        await setDoc(userRef, { role: 'Amministratore' }, { merge: true });
+        await updateDoc(userRef, { role: 'Amministratore' });
     }
   }
 }
