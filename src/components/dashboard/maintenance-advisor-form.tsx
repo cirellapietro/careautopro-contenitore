@@ -1,17 +1,15 @@
 "use client";
 
 import { useActionState, useEffect } from 'react';
-import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { generateMaintenanceAdvice } from '@/app/dashboard/vehicles/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import type { Vehicle } from '@/lib/types';
 
@@ -30,15 +28,6 @@ const initialState = {
   error: null,
 };
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? <Loader2 className="animate-spin" /> : "Ottieni Consiglio dall'AI"}
-    </Button>
-  );
-}
-
 export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
   const [state, formAction] = useActionState(generateMaintenanceAdvice, initialState);
 
@@ -53,6 +42,8 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
     },
   });
 
+  const { isSubmitting } = form.formState;
+
   useEffect(() => {
     form.reset({
       vehicleType: vehicle.type,
@@ -62,6 +53,16 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
       drivingStyle: 'moderate',
     })
   }, [vehicle, form])
+  
+  const onFormSubmit = (data: MaintenanceAdviceFormValues) => {
+    const formData = new FormData();
+    formData.append('vehicleType', data.vehicleType);
+    formData.append('kilometersDriven', String(data.kilometersDriven));
+    formData.append('lastMaintenanceDate', data.lastMaintenanceDate);
+    formData.append('maintenanceHistory', data.maintenanceHistory);
+    formData.append('drivingStyle', data.drivingStyle);
+    formAction(formData);
+  };
 
 
   return (
@@ -74,12 +75,8 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
           </CardDescription>
         </CardHeader>
         <Form {...form}>
-          <form action={formAction} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
             <CardContent className="space-y-4">
-              <input type="hidden" name="vehicleType" value={vehicle.type} />
-              <input type="hidden" name="kilometersDriven" value={vehicle.currentMileage} />
-              <input type="hidden" name="lastMaintenanceDate" value={vehicle.lastMaintenanceDate} />
-
               <FormField
                 control={form.control}
                 name="maintenanceHistory"
@@ -112,15 +109,15 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
                         <SelectItem value="conservative">Prudente</SelectItem>
                       </SelectContent>
                     </Select>
-                    {/* This hidden input ensures the value from the custom Select is submitted with the form */}
-                    <input type="hidden" name={field.name} value={field.value} />
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </CardContent>
             <CardFooter>
-              <SubmitButton />
+              <Button type="submit" disabled={isSubmitting} className="w-full">
+                {isSubmitting ? <Loader2 className="animate-spin" /> : "Ottieni Consiglio dall'AI"}
+              </Button>
             </CardFooter>
           </form>
         </Form>
