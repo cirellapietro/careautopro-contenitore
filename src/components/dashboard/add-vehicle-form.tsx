@@ -39,13 +39,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
 import type { VehicleType, MaintenanceCheck } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
-  registrationDate: z.string({
+  registrationDate: z.date({
     required_error: 'La data di immatricolazione è obbligatoria.',
   }),
   licensePlate: z
@@ -77,7 +83,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
-      registrationDate: new Date().toISOString().split('T')[0],
+      registrationDate: new Date(),
       name: '',
       licensePlate: '',
     },
@@ -119,7 +125,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     setTimeout(() => {
         setNewVehicleId(null);
         form.reset({
-            registrationDate: new Date().toISOString().split('T')[0],
+            registrationDate: new Date(),
             name: '',
             licensePlate: '',
             vehicleTypeId: undefined,
@@ -149,6 +155,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       // 1. Create Vehicle
       const newVehicle = {
         ...values,
+        registrationDate: values.registrationDate.toISOString().split('T')[0],
         id: newVehicleRef.id,
         userId: user.uid,
         make: make || '',
@@ -270,9 +277,37 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Data di immatricolazione</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {field.value ? (
+                                    format(field.value, "PPP", { locale: it })
+                                  ) : (
+                                    <span>Seleziona una data</span>
+                                  )}
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -341,7 +376,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => onOpenChange(false)}
+                      onClick={handleClose}
                       disabled={isSubmitting}
                     >
                       Annulla
