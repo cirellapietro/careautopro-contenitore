@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import Image from 'next/image';
 import { doc, collection, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
@@ -122,8 +122,9 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
     )
 }
 
-export default function VehicleDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function VehicleDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
 
