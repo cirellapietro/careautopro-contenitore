@@ -33,9 +33,12 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     const isNew = id === 'new';
 
     const roleRef = useMemoFirebase(() => {
-        if (isNew || !firestore) return null;
+        // Don't fetch if the user isn't a loaded admin, or if it's a new role
+        if (!firestore || !currentUser || currentUser.role !== 'Amministratore' || isNew) {
+            return null;
+        }
         return doc(firestore, 'roles', id);
-    }, [firestore, id, isNew]);
+    }, [firestore, id, isNew, currentUser]);
 
     const { data: roleToEdit, isLoading: isRoleLoading } = useDoc<Role>(roleRef);
 
@@ -90,7 +93,9 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
             });
     };
 
-    if (userLoading || (!isNew && isRoleLoading)) {
+    const isLoading = userLoading || (!isNew && isRoleLoading);
+
+    if (isLoading) {
         return (
             <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -98,7 +103,8 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         );
     }
     
-    if (!isNew && !isRoleLoading && !roleToEdit) {
+    // Once all loading is done, if we're editing and have no role, it's a 404
+    if (!isNew && !isLoading && !roleToEdit) {
         notFound();
     }
 

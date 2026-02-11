@@ -33,9 +33,9 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
     const router = useRouter();
 
     const userRef = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !currentUser || currentUser.role !== 'Amministratore') return null;
         return doc(firestore, 'users', params.id);
-    }, [firestore, params.id]);
+    }, [firestore, params.id, currentUser]);
 
     const rolesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
