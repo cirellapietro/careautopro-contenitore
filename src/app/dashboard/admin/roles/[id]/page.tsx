@@ -54,13 +54,18 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     }, [currentUser, userLoading, router]);
 
     useEffect(() => {
-        if (roleToEdit) {
+        if (isNew) {
+            form.reset({
+                name: '',
+                description: '',
+            });
+        } else if (roleToEdit) {
             form.reset({
                 name: roleToEdit.name || '',
                 description: roleToEdit.description || '',
             });
         }
-    }, [roleToEdit, form]);
+    }, [roleToEdit, isNew, form]);
 
     const onSubmit = (data: z.infer<typeof roleEditSchema>) => {
         if (!roleRef) return;
