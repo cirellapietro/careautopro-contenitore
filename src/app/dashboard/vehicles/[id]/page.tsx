@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { notFound, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { doc, collection, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
@@ -33,12 +33,13 @@ const getStatusBadge = (status: MaintenanceIntervention['status']) => {
 
 function MaintenanceTable({ interventions, isLoading, vehicleId }: { interventions: MaintenanceIntervention[] | null, isLoading: boolean, vehicleId: string }) {
     const { firestore } = useFirebase();
+    const { user } = useUser();
     const { toast } = useToast();
 
     const handleMarkAsDone = (interventionId: string) => {
-        if (!firestore || !vehicleId) return;
+        if (!firestore || !vehicleId || !user) return;
 
-        const interventionRef = doc(firestore, `users/${(window as any).currentUserUid}/vehicles/${vehicleId}/maintenanceInterventions`, interventionId);
+        const interventionRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleId}/maintenanceInterventions`, interventionId);
         updateDoc(interventionRef, {
             status: 'Completato',
             completionDate: new Date().toISOString(),
@@ -130,10 +131,6 @@ export default function VehicleDetailPage() {
 
   const vehicleRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    // This is a bit of a hack to pass the userId to the MaintenanceTable
-    if (typeof window !== 'undefined') {
-        (window as any).currentUserUid = user.uid;
-    }
     return doc(firestore, `users/${user.uid}/vehicles`, id);
   }, [user, firestore, id]);
 
@@ -154,7 +151,7 @@ export default function VehicleDetailPage() {
   }
 
   if (!vehicle && !vehicleLoading) {
-    notFound();
+    return notFound();
   }
 
   // This check is necessary because vehicle could be null
@@ -184,7 +181,7 @@ export default function VehicleDetailPage() {
         </div>
       </div>
       
-      <Tabs defaultValue="maintenance">
+      <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="maintenance">Manutenzione</TabsTrigger>
           <TabsTrigger value="details">Dettagli</TabsTrigger>
