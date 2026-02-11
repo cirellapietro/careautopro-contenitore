@@ -82,12 +82,28 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
 
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
+    // Initialize without default date to prevent hydration mismatch
     defaultValues: {
-      registrationDate: new Date(),
       name: '',
       licensePlate: '',
     },
   });
+
+  // This effect runs when the dialog opens. It resets the form and sets the default
+  // registration date to today. This is done on the client-side to prevent
+  // a server/client mismatch, which was likely causing the calendar to fail.
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: '',
+        licensePlate: '',
+        registrationDate: new Date(),
+        vehicleTypeId: undefined,
+        currentMileage: undefined,
+      });
+    }
+  }, [open, form]);
+
 
   const selectedTypeId = form.watch('vehicleTypeId');
   const selectedVehicleType = vehicleTypes.find(
@@ -124,13 +140,6 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     // Wait for dialog close animation before resetting state
     setTimeout(() => {
         setNewVehicleId(null);
-        form.reset({
-            registrationDate: new Date(),
-            name: '',
-            licensePlate: '',
-            vehicleTypeId: undefined,
-            currentMileage: undefined,
-        });
         setIsSubmitting(false);
     }, 300);
   };
