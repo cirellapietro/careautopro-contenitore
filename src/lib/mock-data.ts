@@ -64,24 +64,6 @@ export const mockDrivingSessions: DrivingSession[] = [
     { id: '3', vehicleId: '1', startTime: '2024-07-14T18:30:00Z', endTime: '2024-07-14T19:15:00Z', distance: 50, duration: 45 },
 ];
 
-
-export const getMockStats = (): DailyStat[] => {
-    const stats: DailyStat[] = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        stats.push({
-            date: date.toISOString().split('T')[0],
-            distance: Math.floor(Math.random() * (100 - 5 + 1) + 5),
-            duration: Math.floor(Math.random() * (120 - 10 + 1) + 10),
-        });
-    }
-    return stats;
-}
-
-export const mockDailyStats: DailyStat[] = getMockStats();
-
 export const mockHourlyBreakdown = [
     { hour: '00-03', minutes: 15 },
     { hour: '03-06', minutes: 5 },
@@ -92,5 +74,3 @@ export const mockHourlyBreakdown = [
     { hour: '18-21', minutes: 210 },
     { hour: '21-24', minutes: 30 },
 ];
-
-    

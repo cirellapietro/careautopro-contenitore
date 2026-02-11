@@ -14,7 +14,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -135,7 +135,7 @@ export default function VehiclesPage() {
                 setVehiclesWithStats(prevStats =>
                     prevStats.map(v => {
                         if (v.id === trackedVehicleId) {
-                            return { ...v, dailyTime: v.dailyTime + 1, isAverage: false };
+                            return { ...v, dailyTime: v.dailyTime + (1/60), isAverage: false }; // Increment by a fraction of a minute
                         }
                         return v;
                     })
@@ -150,21 +150,67 @@ export default function VehiclesPage() {
                     
                     const today = new Date().toISOString().split('T')[0];
                     const statRef = doc(firestore, `users/${user.uid}/vehicles/${trackedVehicleId}/dailyStatistics`, today);
-                    batch.set(statRef, {
+                    const statData = {
+                        vehicleId: trackedVehicleId,
                         date: today,
                         distance: vehicleToSave.dailyKms,
                         duration: vehicleToSave.dailyTime
-                    }, { merge: true });
+                    };
+                    batch.set(statRef, statData, { merge: true });
 
-                    batch.commit().catch(e => {
-                        console.error("Failed to periodically save tracking data", e);
+                    batch.commit().catch(serverError => {
+                        const permissionError = new FirestorePermissionError({
+                            path: statRef.path,
+                            operation: 'write',
+                            requestResourceData: {
+                                vehicleUpdate: { currentMileage: vehicleToSave.currentMileage },
+                                statUpdate: statData,
+                            }
+                        });
+                        errorEmitter.emit('permission-error', permissionError);
                     });
                 }
-            }, 60000);
+            }, 1000); // Update every second for smoother time display, save every minute.
 
         }
 
-        return stopTracking;
+        const periodicSaveInterval = setInterval(() => {
+            const currentTrackedId = localStorage.getItem('trackedVehicleId');
+            const vehicleToSave = vehiclesWithStatsRef.current.find(v => v.id === currentTrackedId);
+            if (vehicleToSave && firestore && user) {
+                 const batch = writeBatch(firestore);
+                    
+                const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleToSave.id);
+                batch.update(vehicleRef, { currentMileage: vehicleToSave.currentMileage });
+                
+                const today = new Date().toISOString().split('T')[0];
+                const statRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleToSave.id}/dailyStatistics`, today);
+                const statData = {
+                    vehicleId: vehicleToSave.id,
+                    date: today,
+                    distance: vehicleToSave.dailyKms,
+                    duration: vehicleToSave.dailyTime
+                };
+                batch.set(statRef, statData, { merge: true });
+
+                batch.commit().catch(serverError => {
+                    const permissionError = new FirestorePermissionError({
+                        path: statRef.path,
+                        operation: 'write',
+                        requestResourceData: {
+                            vehicleUpdate: { currentMileage: vehicleToSave.currentMileage },
+                            statUpdate: statData,
+                        }
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                });
+            }
+        }, 60000); // Save every 60 seconds
+
+        return () => {
+            stopTracking();
+            clearInterval(periodicSaveInterval);
+        };
     }, [trackedVehicleId, user, firestore, toast]);
 
 
@@ -255,16 +301,26 @@ export default function VehiclesPage() {
                 
                 const today = new Date().toISOString().split('T')[0];
                 const statRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleId}/dailyStatistics`, today);
-                batch.set(statRef, {
+                const statData = {
+                    vehicleId: vehicleId,
                     date: today,
                     distance: vehicle.dailyKms,
                     duration: vehicle.dailyTime
-                }, { merge: true });
+                };
+                batch.set(statRef, statData, { merge: true });
 
                 batch.commit()
                  .then(() => toast({ title: "Dati aggiornati!" }))
-                 .catch(e => {
-                    console.error("Failed to update data", e)
+                 .catch(serverError => {
+                    const permissionError = new FirestorePermissionError({
+                        path: statRef.path,
+                        operation: 'write',
+                        requestResourceData: {
+                           vehicleUpdate: { currentMileage: vehicle.currentMileage },
+                           statUpdate: statData
+                        },
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
                     toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare i dati finali.'})
                 });
             }

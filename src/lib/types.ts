@@ -77,6 +77,7 @@ export type DrivingSession = {
 };
 
 export type DailyStat = {
+  vehicleId: string;
   date: string;
   distance: number;
   duration: number; // in minutes

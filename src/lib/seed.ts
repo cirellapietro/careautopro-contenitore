@@ -9,7 +9,7 @@ import {
   query,
   limit,
 } from 'firebase/firestore';
-import { mockVehicles, mockInterventions, getMockStats, mockDrivingSessions } from './mock-data';
+import { mockVehicles, mockInterventions, mockDrivingSessions } from './mock-data';
 import type { MaintenanceCheck, VehicleType, Role } from './types';
 
 // Data for global collections
@@ -162,19 +162,28 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
     }
   });
 
-  const mockStats = getMockStats();
   const vehicleEntries = [...vehicleIdMap.entries()];
 
   for (const [mockVehicleId, newVehicleId] of vehicleEntries) {
-    mockStats.forEach((stat) => {
-      const statDate = stat.date;
-      const newStatRef = doc(
-        firestore,
-        `users/${userId}/vehicles/${newVehicleId}/dailyStatistics`,
-        statDate
-      );
-      batch.set(newStatRef, stat);
-    });
+    // Generate stats for the last 30 days for this vehicle
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const statDate = date.toISOString().split('T')[0];
+
+        const newStatRef = doc(
+            firestore,
+            `users/${userId}/vehicles/${newVehicleId}/dailyStatistics`,
+            statDate
+        );
+        batch.set(newStatRef, {
+            vehicleId: newVehicleId,
+            date: statDate,
+            distance: Math.floor(Math.random() * (100 - 5 + 1) + 5),
+            duration: Math.floor(Math.random() * (120 - 10 + 1) + 10),
+        });
+    }
 
     mockDrivingSessions
       .filter((s) => s.vehicleId === mockVehicleId)
