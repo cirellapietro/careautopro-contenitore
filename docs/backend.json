@@ -50,6 +50,11 @@
         "notificationReminderTime": {
           "type": "number",
           "description": "Days before a due date to send a notification reminder."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -97,6 +102,11 @@
         "vehicleTypeId": {
           "type": "string",
           "description": "Reference to VehicleType. (Relationship: VehicleType 1:N Vehicle)"
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -134,6 +144,11 @@
         "completed": {
           "type": "boolean",
           "description": "Indicates whether the maintenance intervention has been completed."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -169,6 +184,11 @@
         "intervalTime": {
           "type": "number",
           "description": "Time interval (in months) at which the maintenance check should be performed."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -206,6 +226,11 @@
         "disabled": {
           "type": "boolean",
           "description": "Indicates whether the maintenance check is disabled for the vehicle."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -231,6 +256,11 @@
         "averageAnnualMileage": {
           "type": "number",
           "description": "Estimated average annual mileage for this type of vehicle."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -266,6 +296,11 @@
         "distanceTraveled": {
           "type": "number",
           "description": "Total distance traveled during the tracking session."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -302,6 +337,11 @@
         "totalTime": {
           "type": "number",
           "description": "Total time the vehicle was in use on the given date."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -342,6 +382,11 @@
         "isRead": {
           "type": "boolean",
           "description": "Indicates whether the alert has been read by the user."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
         }
       },
       "required": [

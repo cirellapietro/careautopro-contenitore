@@ -8,12 +8,14 @@ export type User = {
   role: 'Amministratore' | 'Utente';
   notificationChannels?: NotificationChannel[];
   notificationReminderTime?: number; // in days
+  dataoraelimina?: string;
 };
 
 export type VehicleType = {
     id: string;
     name: 'Benzina' | 'Diesel' | 'Elettrica' | 'Ibrida';
     averageAnnualMileage: number;
+    dataoraelimina?: string;
 }
 
 export type MaintenanceCheck = {
@@ -22,6 +24,7 @@ export type MaintenanceCheck = {
     description: string;
     intervalMileage?: number;
     intervalTime?: number; // in months
+    dataoraelimina?: string;
 }
 
 export type Vehicle = {
@@ -39,6 +42,7 @@ export type Vehicle = {
   vehicleTypeId: string;
   currentMileage: number;
   lastMaintenanceDate: string;
+  dataoraelimina?: string;
 };
 
 export type MaintenanceIntervention = {
@@ -51,6 +55,7 @@ export type MaintenanceIntervention = {
   cost?: number;
   notes?: string;
   urgency: 'Alta' | 'Media' | 'Bassa';
+  dataoraelimina?: string;
 };
 
 export type DrivingSession = {
@@ -60,12 +65,14 @@ export type DrivingSession = {
   endTime?: string;
   distance: number;
   duration: number; // in minutes
+  dataoraelimina?: string;
 };
 
 export type DailyStat = {
   date: string;
   distance: number;
   duration: number; // in minutes
+  dataoraelimina?: string;
 };
 
     
