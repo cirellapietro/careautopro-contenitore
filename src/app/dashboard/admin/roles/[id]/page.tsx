@@ -31,13 +31,13 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     const router = useRouter();
     const isNew = params.id === 'new';
 
+    // The doc ref is only created when editing. For a new role, it's null.
     const roleRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        if (isNew) return doc(collection(firestore, 'roles'));
+        if (isNew || !firestore) return null;
         return doc(firestore, 'roles', params.id);
     }, [firestore, params.id, isNew]);
 
-    const { data: roleToEdit, isLoading: isRoleLoading } = useDoc<Role>(isNew ? null : roleRef);
+    const { data: roleToEdit, isLoading: isRoleLoading } = useDoc<Role>(roleRef);
 
     const form = useForm<z.infer<typeof roleEditSchema>>({
         resolver: zodResolver(roleEditSchema),
@@ -53,12 +53,11 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         }
     }, [currentUser, userLoading, router]);
 
+    // This effect handles populating the form when editing,
+    // and resetting it when navigating from an edit page to the new page.
     useEffect(() => {
         if (isNew) {
-            form.reset({
-                name: '',
-                description: '',
-            });
+            form.reset({ name: '', description: '' });
         } else if (roleToEdit) {
             form.reset({
                 name: roleToEdit.name || '',
@@ -68,10 +67,14 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     }, [roleToEdit, isNew, form]);
 
     const onSubmit = (data: z.infer<typeof roleEditSchema>) => {
-        if (!roleRef) return;
+        if (!firestore) return;
+
+        // The doc ref for the operation is determined here.
+        const ref = isNew ? doc(collection(firestore, 'roles')) : roleRef;
+        if (!ref) return;
         
-        const dataToSave = isNew ? { ...data, id: roleRef.id } : data;
-        const operation = isNew ? setDoc(roleRef, dataToSave) : updateDoc(roleRef, dataToSave);
+        const dataToSave = isNew ? { ...data, id: ref.id } : data;
+        const operation = isNew ? setDoc(ref, dataToSave) : updateDoc(ref, dataToSave);
         const operationType = isNew ? 'create' : 'update';
     
         operation
@@ -81,7 +84,7 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
             })
             .catch((serverError) => {
                 const permissionError = new FirestorePermissionError({
-                    path: roleRef.path,
+                    path: ref.path,
                     operation: operationType as 'create' | 'update',
                     requestResourceData: dataToSave,
                 });
@@ -90,7 +93,8 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
             });
     };
 
-    if (userLoading || !firestore || (isRoleLoading && !isNew)) {
+    // Main loading state: checks for user auth and role data (only if editing).
+    if (userLoading || (isRoleLoading && !isNew)) {
         return (
             <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -98,7 +102,8 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         );
     }
     
-    if (!isNew && !roleToEdit && !isRoleLoading) {
+    // 404 check: runs only on edit pages after loading is complete.
+    if (!isNew && !roleToEdit) {
         notFound();
     }
 
