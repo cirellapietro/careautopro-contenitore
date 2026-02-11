@@ -19,12 +19,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
 
 export default function AdminUsersPage() {
   const { user: currentUser, loading: userLoading } = useUser();
@@ -77,12 +75,15 @@ export default function AdminUsersPage() {
                   <TableHead>Utente</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Ruolo</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users && users.map(user => (
-                  <TableRow key={user.id}>
+                  <TableRow 
+                    key={user.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/admin/users/${user.id}`)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
@@ -97,11 +98,6 @@ export default function AdminUsersPage() {
                       <Badge variant={user.role === 'Amministratore' ? 'destructive' : 'secondary'}>
                         {user.role}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/admin/users/${user.id}`}>Gestisci</Link>
-                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}

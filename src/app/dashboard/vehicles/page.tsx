@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
@@ -22,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
 import { UpdateMileageDialog } from '@/components/dashboard/update-mileage-dialog';
 import { calculateDistance } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 type VehicleWithStats = Vehicle & {
     dailyKms: number;
@@ -30,6 +30,7 @@ type VehicleWithStats = Vehicle & {
 };
 
 export default function VehiclesPage() {
+    const router = useRouter();
     const { user } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
@@ -255,12 +256,15 @@ export default function VehiclesPage() {
                                 <TableHead>Tempo giornaliero</TableHead>
                                 <TableHead className="text-center">Tracking GPS</TableHead>
                                 <TableHead>Tipo</TableHead>
-                                <TableHead className="text-right">Azioni</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {vehiclesWithStats.map((vehicle) => (
-                                <TableRow key={vehicle.id}>
+                                <TableRow 
+                                    key={vehicle.id}
+                                    className="cursor-pointer"
+                                    onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}`)}
+                                >
                                     <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
                                         <div className="font-medium">{vehicle.name}</div>
@@ -278,7 +282,10 @@ export default function VehiclesPage() {
                                         {vehicle.dailyTime.toFixed(0)} min
                                         {vehicle.isAverage && trackedVehicleId !== vehicle.id && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
                                     </TableCell>
-                                    <TableCell className="text-center">
+                                    <TableCell 
+                                        className="text-center"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         <Switch
                                             id={`gps-switch-${vehicle.id}`}
                                             checked={trackedVehicleId === vehicle.id}
@@ -287,13 +294,6 @@ export default function VehiclesPage() {
                                         />
                                     </TableCell>
                                     <TableCell>{vehicle.type}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" asChild>
-                                            <Link href={`/dashboard/vehicles/${vehicle.id}`}>
-                                                Gestisci
-                                            </Link>
-                                        </Button>
-                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
