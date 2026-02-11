@@ -50,7 +50,7 @@ import { it } from 'date-fns/locale';
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
-  registrationDate: z.string().min(1, "La data di immatricolazione è obbligatoria."),
+  registrationDate: z.date({ required_error: "La data di immatricolazione è obbligatoria."}),
   licensePlate: z
     .string()
     .min(5, { message: 'Targa non valida.' })
@@ -80,7 +80,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
-      registrationDate: new Date().toISOString().split('T')[0],
+      registrationDate: new Date(),
       name: '',
       licensePlate: '',
     },
@@ -122,7 +122,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     setTimeout(() => {
         setNewVehicleId(null);
         form.reset({
-            registrationDate: new Date().toISOString().split('T')[0],
+            registrationDate: new Date(),
             name: '',
             licensePlate: '',
             vehicleTypeId: undefined,
@@ -151,9 +151,10 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
 
       // 1. Create Vehicle
       const newVehicle = {
+        ...values,
         id: newVehicleRef.id,
         userId: user.uid,
-        ...values,
+        registrationDate: format(values.registrationDate, 'yyyy-MM-dd'),
         make: make || '',
         model: model || '',
         type: selectedVehicleType.name,
@@ -282,7 +283,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {field.value ? (
-                                                format(new Date(field.value), 'PPP', { locale: it })
+                                                format(field.value, 'PPP', { locale: it })
                                             ) : (
                                                 <span>Scegli una data</span>
                                             )}
@@ -293,8 +294,8 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                                     <Calendar
                                         mode="single"
                                         locale={it}
-                                        selected={field.value ? new Date(field.value) : undefined}
-                                        onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                        selected={field.value}
+                                        onSelect={field.onChange}
                                         disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
                                         initialFocus
                                     />

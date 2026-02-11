@@ -41,6 +41,10 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
 
     const form = useForm<z.infer<typeof roleEditSchema>>({
         resolver: zodResolver(roleEditSchema),
+        defaultValues: {
+            name: '',
+            description: ''
+        }
     });
 
     useEffect(() => {
@@ -50,19 +54,17 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     }, [currentUser, userLoading, router]);
 
     useEffect(() => {
-        if (roleToEdit && !isNew) {
+        if (roleToEdit) {
             form.reset({
                 name: roleToEdit.name || '',
                 description: roleToEdit.description || '',
             });
         }
-    }, [roleToEdit, form, isNew]);
+    }, [roleToEdit, form]);
 
     const onSubmit = (data: z.infer<typeof roleEditSchema>) => {
         if (!roleRef) return;
         
-        form.clearErrors();
-    
         const dataToSave = isNew ? { ...data, id: roleRef.id } : data;
         const operation = isNew ? setDoc(roleRef, dataToSave) : updateDoc(roleRef, dataToSave);
         const operationType = isNew ? 'create' : 'update';
