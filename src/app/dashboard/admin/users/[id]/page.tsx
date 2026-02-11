@@ -91,7 +91,7 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
         <div className="space-y-6">
             <Link href="/dashboard/admin/users" className="flex items-center gap-2 text-sm text-muted-foreground hover:underline">
                 <ArrowLeft className="h-4 w-4" />
-                Torna all'elenco utenti
+                Torna all'elenco
             </Link>
             <div>
                 <h1 className="font-headline text-3xl font-bold">Modifica Utente</h1>

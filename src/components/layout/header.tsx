@@ -54,9 +54,16 @@ const UserMenu = () => {
                 <Link href="/dashboard/profile">Profilo</Link>
             </DropdownMenuItem>
             {user.role === 'Amministratore' && (
-              <DropdownMenuItem asChild>
-                  <Link href="/dashboard/admin/users">Admin Utenti</Link>
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Amministrazione</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                    <Link href="/dashboard/admin/users">Gestione Utenti</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link href="/dashboard/admin/vehicle-types">Gestione Tipi Veicolo</Link>
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 cursor-pointer">

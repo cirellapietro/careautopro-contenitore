@@ -53,14 +53,14 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
         <div>
-            <h1 className="font-headline text-3xl font-bold">Amministrazione Utenti</h1>
-            <p className="text-muted-foreground">Gestisci tutti gli utenti registrati sulla piattaforma.</p>
+            <h1 className="font-headline text-3xl font-bold">Gestione Utenti</h1>
+            <p className="text-muted-foreground">Visualizza e gestisci tutti gli utenti registrati sulla piattaforma.</p>
         </div>
       <Card>
         <CardHeader>
           <CardTitle>Elenco Utenti</CardTitle>
           <CardDescription>
-            Visualizza e gestisci gli account degli utenti.
+            Clicca su un utente per modificarne i dettagli.
           </CardDescription>
         </CardHeader>
         <CardContent>
