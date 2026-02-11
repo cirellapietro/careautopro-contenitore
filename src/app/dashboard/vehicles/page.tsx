@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
@@ -43,6 +43,7 @@ export default function VehiclesPage() {
     // Refs for GPS tracking
     const watchIdRef = useRef<number | null>(null);
     const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
+    const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const vehiclesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -59,6 +60,10 @@ export default function VehiclesPage() {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
                 lastPositionRef.current = null;
+            }
+             if (timeUpdateIntervalRef.current) {
+                clearInterval(timeUpdateIntervalRef.current);
+                timeUpdateIntervalRef.current = null;
             }
         };
 
@@ -114,6 +119,18 @@ export default function VehiclesPage() {
                 },
                 watchOptions
             );
+
+            timeUpdateIntervalRef.current = setInterval(() => {
+                setVehiclesWithStats(prevStats =>
+                    prevStats.map(v => {
+                        if (v.id === trackedVehicleId) {
+                            return { ...v, dailyTime: v.dailyTime + 1, isAverage: false };
+                        }
+                        return v;
+                    })
+                );
+            }, 60000); // every minute
+
         }
 
         return stopTracking;
@@ -147,15 +164,23 @@ export default function VehiclesPage() {
     
                         let dailyKms = 0;
                         let dailyTime = 0;
+                        let isAverage = true;
                         
-                        if (dailyStats.length > 0) {
+                        const today = new Date().toISOString().split('T')[0];
+                        const todayStat = dailyStats.find(s => s.date === today);
+
+                        if (todayStat) {
+                            dailyKms = todayStat.distance;
+                            dailyTime = todayStat.duration;
+                            isAverage = false;
+                        } else if (dailyStats.length > 0) {
                             const totalKms = dailyStats.reduce((sum, stat) => sum + stat.distance, 0);
                             const totalTime = dailyStats.reduce((sum, stat) => sum + stat.duration, 0);
                             dailyKms = totalKms / dailyStats.length;
                             dailyTime = totalTime / dailyStats.length;
                         }
                         
-                        return { ...vehicle, dailyKms, dailyTime, isAverage: true };
+                        return { ...vehicle, dailyKms, dailyTime, isAverage };
                     })
                 );
                 setVehiclesWithStats(processedVehicles);
@@ -182,14 +207,23 @@ export default function VehiclesPage() {
         if (!isChecked && previouslyTrackedId === vehicleId) {
             const vehicle = vehiclesWithStats.find(v => v.id === vehicleId);
             if (vehicle && firestore && user) {
-                const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
                 const batch = writeBatch(firestore);
+                const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
                 batch.update(vehicleRef, { currentMileage: vehicle.currentMileage });
+                
+                const today = new Date().toISOString().split('T')[0];
+                const statRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleId}/dailyStatistics`, today);
+                batch.set(statRef, {
+                    date: today,
+                    distance: vehicle.dailyKms,
+                    duration: vehicle.dailyTime
+                }, { merge: true });
+
                 batch.commit()
-                 .then(() => toast({ title: "Chilometraggio aggiornato!" }))
+                 .then(() => toast({ title: "Dati aggiornati!" }))
                  .catch(e => {
-                    console.error("Failed to update mileage", e)
-                    toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare il chilometraggio finale.'})
+                    console.error("Failed to update data", e)
+                    toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare i dati finali.'})
                 });
             }
             setTrackedVehicleId(null);
@@ -251,9 +285,10 @@ export default function VehiclesPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Targa</TableHead>
-                                <TableHead>Nome Veicolo</TableHead>
-                                <TableHead>Km giornalieri</TableHead>
-                                <TableHead>Tempo giornaliero</TableHead>
+                                <TableHead>Veicolo</TableHead>
+                                <TableHead>Km attuali</TableHead>
+                                <TableHead>Km oggi</TableHead>
+                                <TableHead>Tempo oggi</TableHead>
                                 <TableHead className="text-center">Tracking GPS</TableHead>
                                 <TableHead>Tipo</TableHead>
                             </TableRow>
@@ -274,6 +309,7 @@ export default function VehiclesPage() {
                                             </div>
                                         )}
                                     </TableCell>
+                                    <TableCell>{vehicle.currentMileage.toLocaleString('it-IT', { maximumFractionDigits: 1 })} km</TableCell>
                                     <TableCell>
                                         {vehicle.dailyKms.toFixed(1)} km
                                         {vehicle.isAverage && trackedVehicleId !== vehicle.id && <span className="text-xs text-muted-foreground ml-1">(media)</span>}
