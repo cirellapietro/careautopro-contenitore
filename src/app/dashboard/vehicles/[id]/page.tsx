@@ -123,6 +123,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
 }
 
 export default function VehicleDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
 
@@ -132,8 +133,8 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
     if (typeof window !== 'undefined') {
         (window as any).currentUserUid = user.uid;
     }
-    return doc(firestore, `users/${user.uid}/vehicles`, params.id);
-  }, [user, firestore, params.id]);
+    return doc(firestore, `users/${user.uid}/vehicles`, id);
+  }, [user, firestore, id]);
 
   const interventionsQuery = useMemoFirebase(() => {
     if (!vehicleRef) return null;
