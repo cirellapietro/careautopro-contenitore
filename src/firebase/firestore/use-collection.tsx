@@ -61,6 +61,7 @@ export function useCollection<T = any>(
   const queryKey = memoizedTargetRefOrQuery ? (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString() : null;
 
   useEffect(() => {
+    // If the query isn't ready, we are not "loading".
     if (!queryKey || !memoizedTargetRefOrQuery) {
       setIsLoading(false);
       setData(null);
@@ -68,7 +69,9 @@ export function useCollection<T = any>(
       return;
     }
 
+    // When the query becomes available, start loading.
     setIsLoading(true);
+    // Reset state from previous query
     setData(null);
     setError(null);
 
@@ -81,7 +84,7 @@ export function useCollection<T = any>(
         }
         setData(results);
         setError(null);
-        setIsLoading(false);
+        setIsLoading(false); // Done loading.
       },
       (err: FirestoreError) => {
         const path: string =
@@ -96,7 +99,7 @@ export function useCollection<T = any>(
 
         setError(contextualError);
         setData(null);
-        setIsLoading(false);
+        setIsLoading(false); // Done loading, with an error.
         errorEmitter.emit('permission-error', contextualError);
       }
     );

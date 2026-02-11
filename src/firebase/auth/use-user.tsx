@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getFirestore, onSnapshot } from 'firebase/firestore';
 import { FirebaseContext } from '../provider';
@@ -15,6 +15,7 @@ export function useUser(): UseUserHook {
   const firebaseApp = context?.firebaseApp;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastUserJson = useRef<string | null>(null);
 
   useEffect(() => {
     if (!firebaseApp) {
@@ -32,14 +33,14 @@ export function useUser(): UseUserHook {
       }
 
       if (firebaseUser) {
-        setLoading(true);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         unsubscribeDoc = onSnapshot(userDocRef, (userDocSnap) => {
+          let newUser: User;
           if (userDocSnap.exists()) {
               const userData = userDocSnap.data();
               // Combine auth data and firestore data
-              setUser({
+              newUser = {
                   // From Auth
                   uid: firebaseUser.uid,
                   email: firebaseUser.email,
@@ -49,11 +50,11 @@ export function useUser(): UseUserHook {
                   role: userData.role || 'Utente',
                   notificationChannels: userData.notificationChannels || ['app', 'email'],
                   notificationReminderTime: userData.notificationReminderTime || 3,
-              });
+              };
           } else {
             // This can happen if the user document creation is delayed or failed.
             // Create a user object from auth details with default app-specific values.
-            setUser({
+            newUser = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName,
@@ -61,17 +62,25 @@ export function useUser(): UseUserHook {
                 role: 'Utente',
                 notificationChannels: ['app', 'email'],
                 notificationReminderTime: 3,
-            });
+            };
           }
+
+          const newUserJson = JSON.stringify(newUser);
+          if (newUserJson !== lastUserJson.current) {
+            setUser(newUser);
+            lastUserJson.current = newUserJson;
+          }
+          
           setLoading(false);
         }, (error) => {
             console.error("Error fetching user document:", error);
-            // On error, treat as if user data is not available
             setUser(null);
+            lastUserJson.current = null;
             setLoading(false);
         });
       } else {
         setUser(null);
+        lastUserJson.current = null;
         setLoading(false);
       }
     });

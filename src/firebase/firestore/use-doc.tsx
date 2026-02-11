@@ -48,6 +48,7 @@ export function useDoc<T = any>(
   const docRefPath = memoizedDocRef?.path;
 
   useEffect(() => {
+    // If the ref is not ready, we are not "loading".
     if (!docRefPath || !memoizedDocRef) {
       setIsLoading(false);
       setData(null);
@@ -55,7 +56,9 @@ export function useDoc<T = any>(
       return;
     }
 
+    // When the ref becomes available, we start loading.
     setIsLoading(true);
+    // Reset state from previous ref
     setData(null);
     setError(null);
 
@@ -65,10 +68,11 @@ export function useDoc<T = any>(
         if (doc.exists()) {
           setData({ ...(doc.data() as T), id: doc.id });
         } else {
+          // Document does not exist. We are no longer loading, and data is null.
           setData(null);
         }
         setError(null);
-        setIsLoading(false);
+        setIsLoading(false); // We are done loading, whether doc exists or not.
       },
       (err: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
@@ -78,7 +82,7 @@ export function useDoc<T = any>(
         
         setError(contextualError);
         setData(null);
-        setIsLoading(false);
+        setIsLoading(false); // Done loading, but with an error.
         errorEmitter.emit('permission-error', contextualError);
       }
     );
