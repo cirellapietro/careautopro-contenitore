@@ -43,51 +43,47 @@ export function useDoc<T = any>(
 ): UseDocResult<T> {
   type StateDataType = WithId<T> | null;
 
-  const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<FirestoreError | Error | null>(null);
+  // A single state object to hold the result of the async operation.
+  const [snapshot, setSnapshot] = useState<{ data: StateDataType, error: Error | null } | null>(null);
 
   useEffect(() => {
+    // If there's no ref, clear the snapshot and do nothing.
     if (!memoizedDocRef) {
-      setIsLoading(false);
-      setData(null);
-      setError(null);
+      setSnapshot(null);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    // Optional: setData(null); // Clear previous data instantly
+    // When the ref changes, reset the snapshot to indicate loading.
+    setSnapshot(null); 
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
-      (snapshot: DocumentSnapshot<DocumentData>) => {
-        if (snapshot.exists()) {
-          setData({ ...(snapshot.data() as T), id: snapshot.id });
+      (doc: DocumentSnapshot<DocumentData>) => {
+        if (doc.exists()) {
+          setSnapshot({ data: { ...(doc.data() as T), id: doc.id }, error: null });
         } else {
           // Document does not exist
-          setData(null);
+          setSnapshot({ data: null, error: null });
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
-        setIsLoading(false);
       },
       (error: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,
         })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
+        
+        setSnapshot({ data: null, error: contextualError });
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+  }, [memoizedDocRef]);
 
-  return { data, isLoading, error };
+  return {
+    data: snapshot ? snapshot.data : null,
+    // We are loading if a ref exists but we don't have a snapshot result yet.
+    isLoading: !snapshot && !!memoizedDocRef,
+    error: snapshot ? snapshot.error : null,
+  };
 }
