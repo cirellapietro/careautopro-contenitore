@@ -52,9 +52,16 @@ export default function VehiclesPage() {
 
     const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery);
 
+    // On component mount, check localStorage for a tracked vehicle ID
+    useEffect(() => {
+        const storedId = localStorage.getItem('trackedVehicleId');
+        if (storedId) {
+            setTrackedVehicleId(storedId);
+        }
+    }, []);
+
     // Effect for real GPS tracking
     useEffect(() => {
-        // Cleanup function to stop tracking
         const stopTracking = () => {
             if (watchIdRef.current && navigator.geolocation) {
                 navigator.geolocation.clearWatch(watchIdRef.current);
@@ -75,6 +82,7 @@ export default function VehiclesPage() {
                     description: 'La geolocalizzazione non è supportata da questo browser.',
                 });
                 setTrackedVehicleId(null);
+                localStorage.removeItem('trackedVehicleId');
                 return;
             }
 
@@ -116,6 +124,7 @@ export default function VehiclesPage() {
                         description: errorMessage,
                     });
                     setTrackedVehicleId(null); // Turn off the switch
+                    localStorage.removeItem('trackedVehicleId');
                 },
                 watchOptions
             );
@@ -140,11 +149,11 @@ export default function VehiclesPage() {
     // Effect to fetch initial stats and show mileage prompt
     useEffect(() => {
         // Logic to show the mileage update prompt
-        if (userVehicles && userVehicles.length > 0 && trackedVehicleId === null) {
+        if (userVehicles && userVehicles.length > 0) {
             const todayStr = new Date().toISOString().split('T')[0];
             const lastPromptDate = localStorage.getItem('mileagePromptLastShown');
 
-            if (lastPromptDate !== todayStr) {
+            if (lastPromptDate !== todayStr && !localStorage.getItem('trackedVehicleId')) {
                 const todayStart = new Date();
                 todayStart.setHours(0, 0, 0, 0);
 
@@ -160,8 +169,6 @@ export default function VehiclesPage() {
                     localStorage.setItem('mileagePromptLastShown', todayStr);
                 }
             }
-        } else if (userVehicles && userVehicles.length === 0) {
-            setTrackedVehicleId(null);
         }
         
         if (!userVehicles) {
@@ -215,7 +222,7 @@ export default function VehiclesPage() {
         } else {
             setVehiclesWithStats([]);
         }
-    }, [user, firestore, userVehicles, toast, trackedVehicleId]);
+    }, [user, firestore, userVehicles, toast]);
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
         const previouslyTrackedId = trackedVehicleId;
@@ -243,6 +250,7 @@ export default function VehiclesPage() {
                 });
             }
             setTrackedVehicleId(null);
+            localStorage.removeItem('trackedVehicleId');
         } else if (isChecked) {
             if (previouslyTrackedId && previouslyTrackedId !== vehicleId) {
                 const previousVehicle = vehiclesWithStats.find(v => v.id === previouslyTrackedId);
@@ -252,6 +260,7 @@ export default function VehiclesPage() {
                 }
             }
             setTrackedVehicleId(vehicleId);
+            localStorage.setItem('trackedVehicleId', vehicleId);
              toast({
                 title: `Tracking attivato per ${vehiclesWithStats.find(v => v.id === vehicleId)?.name}`,
                 description: "Il browser chiederà il permesso di accedere alla tua posizione.",
