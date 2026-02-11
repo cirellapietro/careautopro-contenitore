@@ -378,7 +378,12 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                       <FormItem>
                         <FormLabel>Chilometraggio attuale (opzionale)</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="Es. 45000" {...field} />
+                          <Input
+                            type="number"
+                            placeholder="Es. 45000"
+                            {...field}
+                            value={field.value ?? ''}
+                          />
                         </FormControl>
                         <FormDescription>
                           {selectedVehicleType && !form.getValues('currentMileage')
