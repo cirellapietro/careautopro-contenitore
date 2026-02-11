@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useDoc, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, ArrowLeft, PlusCircle, Pencil, Trash2 } from 'lucide-react';
@@ -42,7 +42,7 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
 
     const [checkToDelete, setCheckToDelete] = useState<MaintenanceCheck | null>(null);
 
-    const checksQuery = useMemoFirebase(() => {
+    const checksQuery = useMemo(() => {
         if (!firestore) return null;
         return collection(firestore, 'vehicleTypes', vehicleTypeId, 'maintenanceChecks');
     }, [firestore, vehicleTypeId]);
@@ -155,7 +155,7 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { id: str
     const router = useRouter();
     const isNew = params.id === 'new';
 
-    const vtRef = useMemoFirebase(() => {
+    const vtRef = useMemo(() => {
         if (!firestore) return null;
         if (isNew) return doc(collection(firestore, 'vehicleTypes'));
         return doc(firestore, 'vehicleTypes', params.id);

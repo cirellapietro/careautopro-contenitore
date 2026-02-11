@@ -1,6 +1,6 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { VehicleType } from '@/lib/types';
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -43,7 +43,7 @@ export default function AdminVehicleTypesPage() {
 
   const [vehicleTypeToDelete, setVehicleTypeToDelete] = useState<VehicleType | null>(null);
 
-  const vehicleTypesQuery = useMemoFirebase(() => {
+  const vehicleTypesQuery = useMemo(() => {
     if (!firestore || currentUser?.role !== 'Amministratore') return null;
     return collection(firestore, 'vehicleTypes');
   }, [firestore, currentUser]);
@@ -79,7 +79,7 @@ export default function AdminVehicleTypesPage() {
         });
   };
 
-  if (userLoading || !currentUser || currentUser.role !== 'Amministratore') {
+  if (userLoading || vehicleTypesLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

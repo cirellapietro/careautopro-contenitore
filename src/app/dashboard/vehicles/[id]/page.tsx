@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 import type { MaintenanceIntervention, Vehicle } from '@/lib/types';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirebase, useDoc, useCollection } from '@/firebase';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -129,12 +129,12 @@ export default function VehicleDetailPage() {
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
 
-  const vehicleRef = useMemoFirebase(() => {
+  const vehicleRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/vehicles`, id);
   }, [user, firestore, id]);
 
-  const interventionsQuery = useMemoFirebase(() => {
+  const interventionsQuery = useMemo(() => {
     if (!vehicleRef) return null;
     return collection(vehicleRef, 'maintenanceInterventions');
   }, [vehicleRef]);

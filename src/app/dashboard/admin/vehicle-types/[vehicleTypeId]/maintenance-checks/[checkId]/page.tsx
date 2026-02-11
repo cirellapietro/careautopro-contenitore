@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -39,7 +39,7 @@ export default function AdminCheckEditPage({ params }: { params: PageParams }) {
     const router = useRouter();
     const isNew = params.checkId === 'new';
 
-    const checkRef = useMemoFirebase(() => {
+    const checkRef = useMemo(() => {
         if (!firestore) return null;
         if (isNew) return doc(collection(firestore, 'vehicleTypes', params.vehicleTypeId, 'maintenanceChecks'));
         return doc(firestore, 'vehicleTypes', params.vehicleTypeId, 'maintenanceChecks', params.checkId);

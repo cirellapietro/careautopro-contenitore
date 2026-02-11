@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -32,7 +32,7 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     const router = useRouter();
     const isNew = id === 'new';
 
-    const roleRef = useMemoFirebase(() => {
+    const roleRef = useMemo(() => {
         // Don't fetch if the user isn't a loaded admin, or if it's a new role
         if (!firestore || !currentUser || currentUser.role !== 'Amministratore' || isNew) {
             return null;

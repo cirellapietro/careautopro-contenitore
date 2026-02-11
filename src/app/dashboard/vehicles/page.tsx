@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { PlusCircle, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -49,7 +49,7 @@ export default function VehiclesPage() {
     const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
     const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    const vehiclesQuery = useMemoFirebase(() => {
+    const vehiclesQuery = useMemo(() => {
         if (!user || !firestore) return null;
         return collection(firestore, `users/${user.uid}/vehicles`);
     }, [user, firestore]);

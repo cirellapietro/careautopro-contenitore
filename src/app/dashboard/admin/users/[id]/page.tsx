@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useDoc, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
@@ -32,12 +32,12 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
     const { toast } = useToast();
     const router = useRouter();
 
-    const userRef = useMemoFirebase(() => {
+    const userRef = useMemo(() => {
         if (!firestore || !currentUser || currentUser.role !== 'Amministratore') return null;
         return doc(firestore, 'users', params.id);
     }, [firestore, params.id, currentUser]);
 
-    const rolesQuery = useMemoFirebase(() => {
+    const rolesQuery = useMemo(() => {
         if (!firestore) return null;
         return collection(firestore, 'roles');
     }, [firestore]);

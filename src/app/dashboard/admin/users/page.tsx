@@ -1,6 +1,6 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import {
@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
@@ -45,7 +45,7 @@ export default function AdminUsersPage() {
 
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const usersQuery = useMemoFirebase(() => {
+  const usersQuery = useMemo(() => {
     if (!firestore || currentUser?.role !== 'Amministratore') return null;
     return collection(firestore, 'users');
   }, [firestore, currentUser]);
@@ -81,7 +81,7 @@ export default function AdminUsersPage() {
   };
 
 
-  if (userLoading || !currentUser || currentUser.role !== 'Amministratore') {
+  if (userLoading || usersLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

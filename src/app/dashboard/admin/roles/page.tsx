@@ -1,13 +1,13 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { Role } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +21,7 @@ export default function AdminRolesPage() {
 
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
-  const rolesQuery = useMemoFirebase(() => {
+  const rolesQuery = useMemo(() => {
     if (!firestore || currentUser?.role !== 'Amministratore') return null;
     return collection(firestore, 'roles');
   }, [firestore, currentUser]);
@@ -58,7 +58,7 @@ export default function AdminRolesPage() {
       });
   };
 
-  if (userLoading || !currentUser || currentUser.role !== 'Amministratore') {
+  if (userLoading || rolesLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
