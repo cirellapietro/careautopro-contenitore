@@ -39,18 +39,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { VehicleType, MaintenanceCheck } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
 
 const addVehicleSchema = z.object({
   name: z.string().min(2, { message: 'Il nome è obbligatorio.' }),
-  registrationDate: z.date({
+  registrationDate: z.string({
     required_error: 'La data di immatricolazione è obbligatoria.',
   }),
   licensePlate: z
@@ -82,7 +77,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
-      registrationDate: new Date(),
+      registrationDate: new Date().toISOString().split('T')[0],
       name: '',
       licensePlate: '',
     },
@@ -124,7 +119,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     setTimeout(() => {
         setNewVehicleId(null);
         form.reset({
-            registrationDate: new Date(),
+            registrationDate: new Date().toISOString().split('T')[0],
             name: '',
             licensePlate: '',
             vehicleTypeId: undefined,
@@ -156,7 +151,6 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         ...values,
         id: newVehicleRef.id,
         userId: user.uid,
-        registrationDate: values.registrationDate.toISOString().split('T')[0],
         make: make || '',
         model: model || '',
         type: selectedVehicleType.name,
@@ -276,37 +270,9 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Data di immatricolazione</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={'outline'}
-                                  className={cn(
-                                    'w-full pl-3 text-left font-normal',
-                                    !field.value && 'text-muted-foreground'
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, 'PPP', { locale: it })
-                                  ) : (
-                                    <span>Scegli una data</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date > new Date() || date < new Date('1900-01-01')
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
