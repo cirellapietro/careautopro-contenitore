@@ -54,31 +54,36 @@ export interface InternalQuery extends Query<DocumentData> {
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
 ): UseCollectionResult<T> {
-  type ResultItemType = WithId<T>;
-  
-  // A single state object to hold the result of the async operation.
-  const [snapshot, setSnapshot] = useState<{ data: ResultItemType[] | null, error: Error | null } | null>(null);
+  const [data, setData] = useState<WithId<T>[] | null>(null);
+  const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const queryKey = memoizedTargetRefOrQuery ? (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString() : null;
 
   useEffect(() => {
-    // If there's no query, clear the snapshot and do nothing.
-    if (!memoizedTargetRefOrQuery) {
-      setSnapshot(null);
+    if (!queryKey || !memoizedTargetRefOrQuery) {
+      setIsLoading(false);
+      setData(null);
+      setError(null);
       return;
     }
 
-    // When the query changes, reset the snapshot to indicate loading.
-    setSnapshot(null);
+    setIsLoading(true);
+    setData(null);
+    setError(null);
 
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (querySnapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
+        const results: WithId<T>[] = [];
         for (const doc of querySnapshot.docs) {
           results.push({ ...(doc.data() as T), id: doc.id });
         }
-        setSnapshot({ data: results, error: null });
+        setData(results);
+        setError(null);
+        setIsLoading(false);
       },
-      (error: FirestoreError) => {
+      (err: FirestoreError) => {
         const path: string =
           memoizedTargetRefOrQuery.type === 'collection'
             ? (memoizedTargetRefOrQuery as CollectionReference).path
@@ -89,18 +94,15 @@ export function useCollection<T = any>(
           path,
         });
 
-        setSnapshot({ data: null, error: contextualError });
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]);
+  }, [queryKey]);
 
-  return {
-    data: snapshot ? snapshot.data : null,
-    // We are loading if a query exists but we don't have a snapshot result yet.
-    isLoading: !snapshot && !!memoizedTargetRefOrQuery,
-    error: snapshot ? snapshot.error : null,
-  };
+  return { data, isLoading, error };
 }

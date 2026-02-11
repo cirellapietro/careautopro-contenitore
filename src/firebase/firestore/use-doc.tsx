@@ -41,49 +41,50 @@ export interface UseDocResult<T> {
 export function useDoc<T = any>(
   memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
 ): UseDocResult<T> {
-  type StateDataType = WithId<T> | null;
+  const [data, setData] = useState<WithId<T> | null>(null);
+  const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // A single state object to hold the result of the async operation.
-  const [snapshot, setSnapshot] = useState<{ data: StateDataType, error: Error | null } | null>(null);
+  const docRefPath = memoizedDocRef?.path;
 
   useEffect(() => {
-    // If there's no ref, clear the snapshot and do nothing.
-    if (!memoizedDocRef) {
-      setSnapshot(null);
+    if (!docRefPath || !memoizedDocRef) {
+      setIsLoading(false);
+      setData(null);
+      setError(null);
       return;
     }
 
-    // When the ref changes, reset the snapshot to indicate loading.
-    setSnapshot(null); 
+    setIsLoading(true);
+    setData(null);
+    setError(null);
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (doc: DocumentSnapshot<DocumentData>) => {
         if (doc.exists()) {
-          setSnapshot({ data: { ...(doc.data() as T), id: doc.id }, error: null });
+          setData({ ...(doc.data() as T), id: doc.id });
         } else {
-          // Document does not exist
-          setSnapshot({ data: null, error: null });
+          setData(null);
         }
+        setError(null);
+        setIsLoading(false);
       },
-      (error: FirestoreError) => {
+      (err: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,
-        })
+        });
         
-        setSnapshot({ data: null, error: contextualError });
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef]);
+  }, [docRefPath]);
 
-  return {
-    data: snapshot ? snapshot.data : null,
-    // We are loading if a ref exists but we don't have a snapshot result yet.
-    isLoading: !snapshot && !!memoizedDocRef,
-    error: snapshot ? snapshot.error : null,
-  };
+  return { data, isLoading, error };
 }
