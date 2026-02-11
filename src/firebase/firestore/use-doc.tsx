@@ -1,6 +1,6 @@
 'use client';
     
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   DocumentReference,
   onSnapshot,
@@ -28,13 +28,12 @@ export interface UseDocResult<T> {
  * React hook to subscribe to a single Firestore document in real-time.
  * Handles nullable references.
  * 
- * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
+ * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedDocRef or BAD THINGS WILL HAPPEN
+ * use useMemoFirebase to memoize it per React guidance.
  *
  *
  * @template T Optional type for document data. Defaults to any.
- * @param {DocumentReference<DocumentData> | null | undefined} docRef -
+ * @param {DocumentReference<DocumentData> | null | undefined} memoizedDocRef -
  * The Firestore DocumentReference. Waits if null/undefined.
  * @returns {UseDocResult<T>} Object with data, isLoading, error.
  */
@@ -43,22 +42,31 @@ export function useDoc<T = any>(
 ): UseDocResult<T> {
   const [data, setData] = useState<WithId<T> | null>(null);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // isLoading is true only if we have a ref but no data and no error yet.
+  const isLoading = !!memoizedDocRef && data === null && error === null;
 
-  const docRefPath = memoizedDocRef?.path;
+  // Use a ref to track the path to avoid re-subscribing for the exact same doc.
+  const pathRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // If the ref is not ready, we are not "loading".
-    if (!docRefPath || !memoizedDocRef) {
-      setIsLoading(false);
+    const newPath = memoizedDocRef?.path || null;
+
+    // If the new path is the same as the one we're already subscribed to, do nothing.
+    if (newPath === pathRef.current) {
+      return;
+    }
+    pathRef.current = newPath;
+
+    // If the new path is null, it means we should not be listening.
+    // Reset the state completely.
+    if (!newPath || !memoizedDocRef) {
       setData(null);
       setError(null);
       return;
     }
-
-    // When the ref becomes available, we start loading.
-    setIsLoading(true);
-    // Reset state from previous ref
+    
+    // If we have a new, valid path, reset state before subscribing
     setData(null);
     setError(null);
 
@@ -72,7 +80,6 @@ export function useDoc<T = any>(
           setData(null);
         }
         setError(null);
-        setIsLoading(false); // We are done loading, whether doc exists or not.
       },
       (err: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
@@ -82,13 +89,13 @@ export function useDoc<T = any>(
         
         setError(contextualError);
         setData(null);
-        setIsLoading(false); // Done loading, but with an error.
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [docRefPath]);
+    // The dependency is the memoized reference object itself. This is crucial.
+  }, [memoizedDocRef]);
 
   return { data, isLoading, error };
 }

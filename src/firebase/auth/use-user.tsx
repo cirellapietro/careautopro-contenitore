@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getFirestore, onSnapshot } from 'firebase/firestore';
 import { FirebaseContext } from '../provider';
@@ -15,7 +15,6 @@ export function useUser(): UseUserHook {
   const firebaseApp = context?.firebaseApp;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const lastUserJson = useRef<string | null>(null);
 
   useEffect(() => {
     if (!firebaseApp) {
@@ -64,23 +63,16 @@ export function useUser(): UseUserHook {
                 notificationReminderTime: 3,
             };
           }
-
-          const newUserJson = JSON.stringify(newUser);
-          if (newUserJson !== lastUserJson.current) {
-            setUser(newUser);
-            lastUserJson.current = newUserJson;
-          }
           
+          setUser(newUser);
           setLoading(false);
         }, (error) => {
             console.error("Error fetching user document:", error);
             setUser(null);
-            lastUserJson.current = null;
             setLoading(false);
         });
       } else {
         setUser(null);
-        lastUserJson.current = null;
         setLoading(false);
       }
     });

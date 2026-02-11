@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Query,
   onSnapshot,
@@ -41,13 +41,11 @@ export interface InternalQuery extends Query<DocumentData> {
  * React hook to subscribe to a Firestore collection or query in real-time.
  * Handles nullable references/queries.
  * 
- *
  * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
+ * use useMemoFirebase to memoize it per React guidance.
  *  
  * @template T Optional type for document data. Defaults to any.
- * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
+ * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} memoizedTargetRefOrQuery -
  * The Firestore CollectionReference or Query. Waits if null/undefined.
  * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
  */
@@ -56,22 +54,31 @@ export function useCollection<T = any>(
 ): UseCollectionResult<T> {
   const [data, setData] = useState<WithId<T>[] | null>(null);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  const queryKey = memoizedTargetRefOrQuery ? (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString() : null;
+  // isLoading is true if we have a query but no data/error yet.
+  const isLoading = !!memoizedTargetRefOrQuery && data === null && error === null;
 
+  // Use a ref to track the query key to avoid re-subscribing for the same query.
+  const queryKeyRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    // If the query isn't ready, we are not "loading".
-    if (!queryKey || !memoizedTargetRefOrQuery) {
-      setIsLoading(false);
-      setData(null);
-      setError(null);
-      return;
-    }
+    const newQueryKey = memoizedTargetRefOrQuery ? (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString() : null;
 
-    // When the query becomes available, start loading.
-    setIsLoading(true);
-    // Reset state from previous query
+    // If the new key is the same as the current one, do nothing.
+    if (newQueryKey === queryKeyRef.current) {
+        return;
+    }
+    queryKeyRef.current = newQueryKey;
+
+    // If the new key is null, it means we should not be listening.
+    // Reset the state completely.
+    if (!newQueryKey || !memoizedTargetRefOrQuery) {
+        setData(null);
+        setError(null);
+        return;
+    }
+    
+    // If we have a new, valid query, reset state before subscribing
     setData(null);
     setError(null);
 
@@ -84,7 +91,6 @@ export function useCollection<T = any>(
         }
         setData(results);
         setError(null);
-        setIsLoading(false); // Done loading.
       },
       (err: FirestoreError) => {
         const path: string =
@@ -99,13 +105,13 @@ export function useCollection<T = any>(
 
         setError(contextualError);
         setData(null);
-        setIsLoading(false); // Done loading, with an error.
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [queryKey]);
+    // The dependency is the memoized query object itself. This is crucial.
+  }, [memoizedTargetRefOrQuery]);
 
   return { data, isLoading, error };
 }
