@@ -51,7 +51,15 @@ async function createUserDocument(uid: string, email: string | null, displayName
 
 export async function signInWithEmail(email: string, password: string): Promise<void> {
   const authInstance = getFirebaseAuth();
-  await signInWithEmailAndPassword(authInstance, email, password);
+  const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
+
+  // After successful sign-in, check if the user should be an admin.
+  if (userCredential.user && email === 'cirellapietro@gmail.com') {
+    const firestore = getFirebaseDb();
+    const userRef = doc(firestore, 'users', userCredential.user.uid);
+    // This ensures the role is correctly set to Amministratore on every login.
+    await setDoc(userRef, { role: 'Amministratore' }, { merge: true });
+  }
 }
 
 export async function signUpWithEmail(email: string, password: string, displayName: string): Promise<void> {
@@ -72,7 +80,13 @@ export async function signInWithGoogle(): Promise<void> {
   const docSnap = await getDoc(userRef);
   
   if (!docSnap.exists()) {
+    // New user via Google: createUserDocument will set the role correctly based on email.
     await createUserDocument(user.uid, user.email, user.displayName, user.photoURL);
+  } else {
+    // Existing user: explicitly check and set admin role if needed.
+    if (user.email === 'cirellapietro@gmail.com') {
+        await setDoc(userRef, { role: 'Amministratore' }, { merge: true });
+    }
   }
 }
 
