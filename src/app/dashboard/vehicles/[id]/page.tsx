@@ -1,14 +1,24 @@
-import { mockVehicles, mockInterventions } from '@/lib/mock-data';
-import type { MaintenanceIntervention, Vehicle } from '@/lib/types';
+'use client';
+
+import { useMemo } from 'react';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
+import { doc, collection, updateDoc } from 'firebase/firestore';
+import Link from 'next/link';
+
+import type { MaintenanceIntervention, Vehicle } from '@/lib/types';
+import { useUser } from '@/firebase/auth/use-user';
+import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Wrench } from 'lucide-react';
+import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { MaintenanceAdvisorForm } from '@/components/dashboard/maintenance-advisor-form';
+import { useToast } from '@/hooks/use-toast';
+
 
 const getStatusBadge = (status: MaintenanceIntervention['status']) => {
     switch (status) {
@@ -21,7 +31,33 @@ const getStatusBadge = (status: MaintenanceIntervention['status']) => {
     }
 }
 
-function MaintenanceTable({ interventions }: { interventions: MaintenanceIntervention[] }) {
+function MaintenanceTable({ interventions, isLoading, vehicleId }: { interventions: MaintenanceIntervention[] | null, isLoading: boolean, vehicleId: string }) {
+    const { firestore } = useFirebase();
+    const { toast } = useToast();
+
+    const handleMarkAsDone = (interventionId: string) => {
+        if (!firestore || !vehicleId) return;
+
+        const interventionRef = doc(firestore, `users/${(window as any).currentUserUid}/vehicles/${vehicleId}/maintenanceInterventions`, interventionId);
+        updateDoc(interventionRef, {
+            status: 'Completato',
+            completionDate: new Date().toISOString(),
+        }).then(() => {
+            toast({ title: 'Successo!', description: 'Intervento segnato come completato.' });
+        }).catch((error) => {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile aggiornare l\'intervento.' });
+        })
+    }
+    
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -40,17 +76,23 @@ function MaintenanceTable({ interventions }: { interventions: MaintenanceInterve
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {interventions.map((item) => (
+                        {interventions && interventions.length > 0 ? interventions.map((item) => (
                             <TableRow key={item.id}>
                                 <TableCell className="font-medium">{item.description}</TableCell>
                                 <TableCell>{getStatusBadge(item.status)}</TableCell>
                                 <TableCell>{item.urgency}</TableCell>
                                 <TableCell>{item.completionDate ? new Date(item.completionDate).toLocaleDateString('it-IT') : (item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString('it-IT') : 'N/D')}</TableCell>
                                 <TableCell className="text-right">
-                                    {item.status !== 'Completato' && <Button size="sm"><CheckCircle className="mr-2 h-4 w-4" /> Segna come Fatto</Button>}
+                                    {item.status !== 'Completato' && <Button size="sm" onClick={() => handleMarkAsDone(item.id)}><CheckCircle className="mr-2 h-4 w-4" /> Segna come Fatto</Button>}
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )) : (
+                             <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    Nessun intervento trovato.
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -72,7 +114,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
                     <div><span className="text-muted-foreground">Targa:</span> {vehicle.licensePlate}</div>
                     <div><span className="text-muted-foreground">Tipo:</span> {vehicle.type}</div>
                     <div><span className="text-muted-foreground">Chilometraggio:</span> {vehicle.currentMileage.toLocaleString('it-IT')} km</div>
-                    <div><span className="text-muted-foreground">VIN:</span> {vehicle.vin}</div>
+                    {vehicle.vin && <div><span className="text-muted-foreground">VIN:</span> {vehicle.vin}</div>}
                     <div><span className="text-muted-foreground">Ultima Manutenzione:</span> {new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')}</div>
                 </div>
             </CardContent>
@@ -81,19 +123,59 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
 }
 
 export default function VehicleDetailPage({ params }: { params: { id: string } }) {
-  const vehicle = mockVehicles.find(v => v.id === params.id);
-  const interventions = mockInterventions.filter(i => i.vehicleId === params.id);
+  const { user, loading: userLoading } = useUser();
+  const { firestore } = useFirebase();
 
-  if (!vehicle) {
+  const vehicleRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    // This is a bit of a hack to pass the userId to the MaintenanceTable
+    if (typeof window !== 'undefined') {
+        (window as any).currentUserUid = user.uid;
+    }
+    return doc(firestore, `users/${user.uid}/vehicles`, params.id);
+  }, [user, firestore, params.id]);
+
+  const interventionsQuery = useMemoFirebase(() => {
+    if (!vehicleRef) return null;
+    return collection(vehicleRef, 'maintenanceInterventions');
+  }, [vehicleRef]);
+
+  const { data: vehicle, isLoading: vehicleLoading } = useDoc<Vehicle>(vehicleRef);
+  const { data: interventions, isLoading: interventionsLoading } = useCollection<MaintenanceIntervention>(interventionsQuery);
+
+  if (userLoading || vehicleLoading) {
+      return (
+          <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+      );
+  }
+
+  if (!vehicle && !vehicleLoading) {
     notFound();
+  }
+
+  // This check is necessary because vehicle could be null
+  if (!vehicle) {
+      return (
+        <div className="flex h-full items-center justify-center">
+            <p>Veicolo non trovato.</p>
+        </div>
+      );
   }
 
   return (
     <div className="space-y-6">
+      <Link href="/dashboard/vehicles" className="flex items-center gap-2 text-sm text-muted-foreground hover:underline">
+          <ArrowLeft className="h-4 w-4" />
+          Torna all'elenco
+      </Link>
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="relative h-40 w-40 flex-shrink-0">
-          <Image src={vehicle.imageUrl} alt={vehicle.name} fill className="rounded-lg object-cover" data-ai-hint={vehicle.imageHint} />
-        </div>
+        {vehicle.imageUrl && (
+            <div className="relative h-40 w-40 flex-shrink-0">
+            <Image src={vehicle.imageUrl} alt={vehicle.name} fill className="rounded-lg object-cover" data-ai-hint={vehicle.imageHint || ''} />
+            </div>
+        )}
         <div>
           <h1 className="font-headline text-4xl font-bold">{vehicle.name}</h1>
           <p className="text-lg text-muted-foreground">{vehicle.make} {vehicle.model}</p>
@@ -107,7 +189,7 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
           <TabsTrigger value="ai-advisor">Assistente AI</TabsTrigger>
         </TabsList>
         <TabsContent value="maintenance" className="mt-4">
-            <MaintenanceTable interventions={interventions} />
+            <MaintenanceTable interventions={interventions} isLoading={interventionsLoading} vehicleId={vehicle.id} />
         </TabsContent>
         <TabsContent value="details" className="mt-4">
             <VehicleDetails vehicle={vehicle} />
