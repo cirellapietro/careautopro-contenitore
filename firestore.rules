@@ -57,7 +57,7 @@ service cloud.firestore {
      * Validates that the ID of the user document is not being changed on update.
      */
     function isUserDocIdImmutable() {
-      return request.resource.data.id == resource.data.id;
+      return !('id' in request.resource.data) || request.resource.data.id == resource.data.id;
     }
     
     /**
@@ -190,5 +190,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
