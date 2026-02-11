@@ -63,6 +63,9 @@ const UserMenu = () => {
                 <DropdownMenuItem asChild>
                     <Link href="/dashboard/admin/vehicle-types">Gestione Tipi Veicolo</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/admin/roles">Gestione Ruoli</Link>
+                </DropdownMenuItem>
               </>
             )}
             <DropdownMenuSeparator />

@@ -11,17 +11,81 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import type { VehicleType } from '@/lib/types';
+import { Loader2, ArrowLeft, PlusCircle } from 'lucide-react';
+import type { VehicleType, MaintenanceCheck } from '@/lib/types';
 import Link from 'next/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const vehicleTypeEditSchema = z.object({
   name: z.string().min(1, "Il nome è obbligatorio."),
   averageAnnualMileage: z.coerce.number().min(0, "Il chilometraggio non può essere negativo."),
 });
+
+function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
+    const { firestore } = useFirebase();
+    const router = useRouter();
+
+    const checksQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'vehicleTypes', vehicleTypeId, 'maintenanceChecks');
+    }, [firestore, vehicleTypeId]);
+
+    const { data: checks, isLoading } = useCollection<MaintenanceCheck>(checksQuery);
+
+    return (
+        <Card>
+            <CardHeader className="flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Controlli di Manutenzione Standard</CardTitle>
+                    <CardDescription>
+                        I controlli standard associati a questo tipo di veicolo.
+                    </CardDescription>
+                </div>
+                 <Button size="sm" onClick={() => router.push(`/dashboard/admin/vehicle-types/${vehicleTypeId}/maintenance-checks/new`)}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-24">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Descrizione</TableHead>
+                                <TableHead>Intervallo Km</TableHead>
+                                <TableHead>Intervallo Mesi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {checks && checks.map(check => (
+                                <TableRow 
+                                    key={check.id}
+                                    className="cursor-pointer"
+                                    onClick={() => router.push(`/dashboard/admin/vehicle-types/${vehicleTypeId}/maintenance-checks/${check.id}`)}
+                                >
+                                    <TableCell className="font-medium">{check.description}</TableCell>
+                                    <TableCell>{check.intervalMileage ? `${check.intervalMileage.toLocaleString('it-IT')} km` : 'N/A'}</TableCell>
+                                    <TableCell>{check.intervalTime ? `${check.intervalTime} mesi` : 'N/A'}</TableCell>
+                                </TableRow>
+                            ))}
+                             {checks?.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center h-24">Nessun controllo standard trovato.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function AdminVehicleTypeEditPage({ params }: { params: { id: string } }) {
     const { user: currentUser, loading: userLoading } = useUser();
@@ -64,11 +128,12 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { id: str
             if (isNew) {
                 await setDoc(vtRef, { ...data, id: vtRef.id });
                 toast({ title: "Successo", description: "Tipo veicolo creato." });
+                 router.push(`/dashboard/admin/vehicle-types/${vtRef.id}`);
             } else {
                 await updateDoc(vtRef, data);
                 toast({ title: "Successo", description: "Tipo veicolo aggiornato." });
+                router.push('/dashboard/admin/vehicle-types');
             }
-            router.push('/dashboard/admin/vehicle-types');
         } catch (error) {
             console.error(error);
             toast({ variant: 'destructive', title: "Errore", description: "Impossibile salvare il tipo veicolo." });
@@ -98,7 +163,7 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { id: str
                 <p className="text-muted-foreground">{isNew ? 'Crea un nuovo tipo di veicolo.' : 'Modifica i dettagli del tipo di veicolo.'}</p>
             </div>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Dettagli</CardTitle>
@@ -140,6 +205,8 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { id: str
                     </Card>
                 </form>
             </Form>
+            
+            {!isNew && <MaintenanceChecksList vehicleTypeId={params.id} />}
         </div>
     );
 }
