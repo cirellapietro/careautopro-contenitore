@@ -49,6 +49,7 @@ export function useDoc<T = any>(
 
   useEffect(() => {
     if (!memoizedDocRef) {
+      setIsLoading(false);
       setData(null);
       setError(null);
       return;
