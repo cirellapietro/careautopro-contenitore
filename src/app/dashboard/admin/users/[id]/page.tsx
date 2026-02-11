@@ -4,18 +4,18 @@ import { useEffect } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection } from 'firebase/firestore';
 import { notFound, useRouter } from 'next/navigation';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
-import type { User } from '@/lib/types';
+import type { User, Role } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -23,7 +23,7 @@ import Link from 'next/link';
 const userEditSchema = z.object({
   displayName: z.string().min(1, "Il nome è obbligatorio."),
   email: z.string().email(),
-  role: z.enum(['Utente', 'Amministratore']),
+  role: z.string({ required_error: 'Seleziona un ruolo.' }),
 });
 
 export default function AdminUserEditPage({ params }: { params: { id: string } }) {
@@ -37,7 +37,13 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
         return doc(firestore, 'users', params.id);
     }, [firestore, params.id]);
 
+    const rolesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'roles');
+    }, [firestore]);
+
     const { data: userToEdit, isLoading: isUserToEditLoading } = useDoc<User>(userRef);
+    const { data: roles, isLoading: areRolesLoading } = useCollection<Role>(rolesQuery);
 
     const form = useForm<z.infer<typeof userEditSchema>>({
         resolver: zodResolver(userEditSchema),
@@ -75,7 +81,7 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
         }
     };
 
-    if (userLoading || isUserToEditLoading) {
+    if (userLoading || isUserToEditLoading || areRolesLoading) {
         return (
             <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -137,15 +143,16 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Ruolo</FormLabel>
-                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Seleziona un ruolo" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="Utente">Utente</SelectItem>
-                                                <SelectItem value="Amministratore">Amministratore</SelectItem>
+                                                {roles && roles.filter(r => !r.dataoraelimina).map(role => (
+                                                    <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />

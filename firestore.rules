@@ -188,5 +188,17 @@ service cloud.firestore {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
+
+    /**
+     * @description Manages application roles. Readable by all users, writable only by admins.
+     * @path /roles/{roleId}
+     * @allow (get) any user reading the role definitions.
+     * @deny (write) any non-admin client.
+     * @principle Protects role definitions by restricting writes to admins.
+     */
+    match /roles/{roleId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
   }
 }

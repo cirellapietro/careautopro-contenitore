@@ -10,7 +10,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { mockVehicles, mockInterventions, getMockStats, mockDrivingSessions } from './mock-data';
-import type { MaintenanceCheck, VehicleType } from './types';
+import type { MaintenanceCheck, VehicleType, Role } from './types';
 
 // Data for global collections
 const vehicleTypeData: VehicleType[] = [
@@ -18,6 +18,11 @@ const vehicleTypeData: VehicleType[] = [
   { id: 'diesel', name: 'Diesel', averageAnnualMileage: 20000 },
   { id: 'ibrida', name: 'Ibrida', averageAnnualMileage: 12000 },
   { id: 'elettrica', name: 'Elettrica', averageAnnualMileage: 10000 },
+];
+
+const roleData: Omit<Role, 'id'>[] = [
+  { name: 'Amministratore', description: 'Accesso completo a tutte le funzionalità di amministrazione.' },
+  { name: 'Utente', description: 'Accesso standard alle funzionalità dell\'applicazione.' },
 ];
 
 // Common checks for all vehicle types
@@ -62,39 +67,62 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
 
 
 /**
- * Seeds the global, public collections like vehicleTypes and their maintenanceChecks.
+ * Seeds the global, public collections like roles, vehicleTypes and their maintenanceChecks.
  * It checks if the data already exists to avoid overwriting.
  */
 export const seedGlobalData = async (firestore: Firestore) => {
-  const vehicleTypesRef = collection(firestore, 'vehicleTypes');
-  const q = query(vehicleTypesRef, limit(1));
-  const snapshot = await getDocs(q);
+  const batch = writeBatch(firestore);
+  let needsCommit = false;
 
-  // If there's already data, don't seed again.
-  if (!snapshot.empty) {
-    return;
+  // 1. Seed Roles
+  const rolesRef = collection(firestore, 'roles');
+  const rolesQuery = query(rolesRef, limit(1));
+  const rolesSnapshot = await getDocs(rolesQuery);
+
+  if (rolesSnapshot.empty) {
+    needsCommit = true;
+    roleData.forEach(role => {
+      const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
+      batch.set(roleRef, {
+        id: roleRef.id,
+        name: role.name,
+        description: role.description,
+      });
+    });
   }
 
-  const batch = writeBatch(firestore);
+  // 2. Seed Vehicle Types and Maintenance Checks
+  const vehicleTypesRef = collection(firestore, 'vehicleTypes');
+  const vtQuery = query(vehicleTypesRef, limit(1));
+  const vtSnapshot = await getDocs(vtQuery);
 
-  vehicleTypeData.forEach(vt => {
-    const vtRef = doc(firestore, 'vehicleTypes', vt.id);
-    batch.set(vtRef, vt);
+  if (vtSnapshot.empty) {
+    needsCommit = true;
+    vehicleTypeData.forEach(vt => {
+      const vtRef = doc(firestore, 'vehicleTypes', vt.id);
+      batch.set(vtRef, vt);
 
-    const checks = maintenanceCheckData[vt.id];
-    if (checks) {
-      checks.forEach(check => {
-        const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
-        batch.set(checkRef, { 
-            ...check, 
-            id: checkRef.id,
-            vehicleTypeId: vt.id,
+      const checks = maintenanceCheckData[vt.id];
+      if (checks) {
+        checks.forEach(check => {
+          const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
+          batch.set(checkRef, { 
+              ...check, 
+              id: checkRef.id,
+              vehicleTypeId: vt.id,
+          });
         });
-      });
+      }
+    });
+  }
+
+  if (needsCommit) {
+    try {
+      await batch.commit();
+    } catch (error) {
+      console.error("Error during global data seeding:", error);
     }
-  });
-  
-  await batch.commit();
+  }
 };
 
 

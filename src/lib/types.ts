@@ -5,9 +5,16 @@ export type User = {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
-  role: 'Amministratore' | 'Utente';
+  role: string;
   notificationChannels?: NotificationChannel[];
   notificationReminderTime?: number; // in days
+  dataoraelimina?: string;
+};
+
+export type Role = {
+  id: string;
+  name: string;
+  description?: string;
   dataoraelimina?: string;
 };
 
@@ -74,5 +81,3 @@ export type DailyStat = {
   duration: number; // in minutes
   dataoraelimina?: string;
 };
-
-    

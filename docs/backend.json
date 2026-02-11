@@ -26,11 +26,7 @@
         },
         "role": {
           "type": "string",
-          "description": "The role of the user.",
-          "enum": [
-            "Utente",
-            "Amministratore"
-          ]
+          "description": "The name of the user's role (e.g., Utente, Amministratore)."
         },
         "notificationChannels": {
           "type": "array",
@@ -447,6 +443,35 @@
           "description": "Specific flag for configuration debugging."
         }
       }
+    },
+    "Role": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Role",
+      "type": "object",
+      "description": "Represents a user role in the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the role entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the role (e.g., 'Amministratore', 'Utente')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the role's permissions."
+        },
+        "dataoraelimina": {
+          "type": "string",
+          "description": "Timestamp of logical deletion.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
     }
   },
   "auth": {
@@ -657,6 +682,22 @@
             {
               "name": "configId",
               "description": "The unique identifier for the configuration document (e.g., 'main')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles/{roleId}",
+        "definition": {
+          "entityName": "Role",
+          "schema": {
+            "$ref": "#/backend/entities/Role"
+          },
+          "description": "Stores user role definitions. Publicly readable, but writable only by administrators.",
+          "params": [
+            {
+              "name": "roleId",
+              "description": "The unique identifier for the role."
             }
           ]
         }
