@@ -31,7 +31,6 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     const router = useRouter();
     const isNew = params.id === 'new';
 
-    // The doc ref is only created when editing. For a new role, it's null.
     const roleRef = useMemoFirebase(() => {
         if (isNew || !firestore) return null;
         return doc(firestore, 'roles', params.id);
@@ -53,8 +52,6 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         }
     }, [currentUser, userLoading, router]);
 
-    // This effect handles populating the form when editing,
-    // and resetting it when navigating from an edit page to the new page.
     useEffect(() => {
         if (isNew) {
             form.reset({ name: '', description: '' });
@@ -69,7 +66,6 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
     const onSubmit = (data: z.infer<typeof roleEditSchema>) => {
         if (!firestore) return;
 
-        // The doc ref for the operation is determined here.
         const ref = isNew ? doc(collection(firestore, 'roles')) : roleRef;
         if (!ref) return;
         
@@ -93,7 +89,6 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
             });
     };
 
-    // Main loading state: checks for user auth and role data (only if editing).
     if (userLoading || (isRoleLoading && !isNew)) {
         return (
             <div className="flex h-full items-center justify-center">
@@ -102,8 +97,7 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         );
     }
     
-    // 404 check: runs only on edit pages after loading is complete.
-    if (!isNew && !roleToEdit) {
+    if (!isNew && !roleToEdit && !isRoleLoading) {
         notFound();
     }
 

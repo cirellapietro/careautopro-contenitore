@@ -40,7 +40,11 @@ export default function VehiclesPage() {
     const [isAddVehicleOpen, setAddVehicleOpen] = useState(false);
     const [isMileageModalOpen, setMileageModalOpen] = useState(false);
     
-    // Refs for GPS tracking
+    const vehiclesWithStatsRef = useRef(vehiclesWithStats);
+    useEffect(() => {
+        vehiclesWithStatsRef.current = vehiclesWithStats;
+    });
+    
     const watchIdRef = useRef<number | null>(null);
     const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
     const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,7 +56,6 @@ export default function VehiclesPage() {
 
     const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery);
 
-    // On component mount, check localStorage for a tracked vehicle ID
     useEffect(() => {
         const storedId = localStorage.getItem('trackedVehicleId');
         if (storedId) {
@@ -60,7 +63,6 @@ export default function VehiclesPage() {
         }
     }, []);
 
-    // Effect for real GPS tracking
     useEffect(() => {
         const stopTracking = () => {
             if (watchIdRef.current && navigator.geolocation) {
@@ -123,7 +125,7 @@ export default function VehiclesPage() {
                         title: 'Errore GPS',
                         description: errorMessage,
                     });
-                    setTrackedVehicleId(null); // Turn off the switch
+                    setTrackedVehicleId(null);
                     localStorage.removeItem('trackedVehicleId');
                 },
                 watchOptions
@@ -138,17 +140,35 @@ export default function VehiclesPage() {
                         return v;
                     })
                 );
-            }, 60000); // every minute
+
+                const vehicleToSave = vehiclesWithStatsRef.current.find(v => v.id === trackedVehicleId);
+                if (vehicleToSave && firestore && user) {
+                    const batch = writeBatch(firestore);
+                    
+                    const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, trackedVehicleId);
+                    batch.update(vehicleRef, { currentMileage: vehicleToSave.currentMileage });
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    const statRef = doc(firestore, `users/${user.uid}/vehicles/${trackedVehicleId}/dailyStatistics`, today);
+                    batch.set(statRef, {
+                        date: today,
+                        distance: vehicleToSave.dailyKms,
+                        duration: vehicleToSave.dailyTime
+                    }, { merge: true });
+
+                    batch.commit().catch(e => {
+                        console.error("Failed to periodically save tracking data", e);
+                    });
+                }
+            }, 60000);
 
         }
 
         return stopTracking;
-    }, [trackedVehicleId, toast]);
+    }, [trackedVehicleId, user, firestore, toast]);
 
 
-    // Effect to fetch initial stats and show mileage prompt
     useEffect(() => {
-        // Logic to show the mileage update prompt
         if (userVehicles && userVehicles.length > 0) {
             const todayStr = new Date().toISOString().split('T')[0];
             const lastPromptDate = localStorage.getItem('mileagePromptLastShown');
@@ -158,7 +178,6 @@ export default function VehiclesPage() {
                 todayStart.setHours(0, 0, 0, 0);
 
                 const hasVehicleCreatedBeforeToday = userVehicles.some(vehicle => {
-                    // For old data before this feature, or vehicles created before today
                     if (!vehicle.createdAt) return true; 
                     const createdAtDate = new Date(vehicle.createdAt);
                     return createdAtDate < todayStart;
