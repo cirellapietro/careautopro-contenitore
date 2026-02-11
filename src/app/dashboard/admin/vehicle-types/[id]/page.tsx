@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, ArrowLeft, PlusCircle, Pencil, Trash2 } from 'lucide-react';
@@ -49,20 +49,26 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
 
     const { data: checks, isLoading } = useCollection<MaintenanceCheck>(checksQuery);
 
-    const handleDeleteCheck = async () => {
+    const handleDeleteCheck = () => {
         if (!checkToDelete || !firestore) return;
-        try {
-            const docRef = doc(firestore, 'vehicleTypes', vehicleTypeId, 'maintenanceChecks', checkToDelete.id);
-            await updateDoc(docRef, {
-                dataoraelimina: new Date().toISOString()
+        const docRef = doc(firestore, 'vehicleTypes', vehicleTypeId, 'maintenanceChecks', checkToDelete.id);
+        const dataToUpdate = { dataoraelimina: new Date().toISOString() };
+        updateDoc(docRef, dataToUpdate)
+            .then(() => {
+                toast({ title: "Controllo eliminato", description: "Il controllo è stato contrassegnato come eliminato." });
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per eliminare questo controllo." });
+            })
+            .finally(() => {
+                setCheckToDelete(null);
             });
-            toast({ title: "Controllo eliminato", description: "Il controllo è stato contrassegnato come eliminato." });
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: "Errore", description: "Impossibile eliminare il controllo." });
-        } finally {
-            setCheckToDelete(null);
-        }
     };
 
     return (
@@ -176,23 +182,29 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { id: str
         }
     }, [vehicleTypeToEdit, form, isNew]);
 
-    const onSubmit = async (data: z.infer<typeof vehicleTypeEditSchema>) => {
+    const onSubmit = (data: z.infer<typeof vehicleTypeEditSchema>) => {
         if (!vtRef) return;
+        
+        const operationType = isNew ? 'create' : 'update';
+        const dataToSave = isNew ? { ...data, id: vtRef.id } : data;
+        const operation = isNew ? setDoc(vtRef, dataToSave) : updateDoc(vtRef, dataToSave);
 
-        try {
+        operation.then(() => {
+            toast({ title: "Successo", description: isNew ? "Tipo veicolo creato." : "Tipo veicolo aggiornato." });
             if (isNew) {
-                await setDoc(vtRef, { ...data, id: vtRef.id });
-                toast({ title: "Successo", description: "Tipo veicolo creato." });
-                 router.push(`/dashboard/admin/vehicle-types/${vtRef.id}`);
+                router.push(`/dashboard/admin/vehicle-types/${vtRef.id}`);
             } else {
-                await updateDoc(vtRef, data);
-                toast({ title: "Successo", description: "Tipo veicolo aggiornato." });
                 router.push('/dashboard/admin/vehicle-types');
             }
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: "Errore", description: "Impossibile salvare il tipo veicolo." });
-        }
+        }).catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: vtRef.path,
+                operation: operationType as 'create' | 'update',
+                requestResourceData: dataToSave,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per salvare questo tipo veicolo." });
+        });
     };
 
     if (userLoading || (isVtLoading && !isNew)) {
@@ -254,7 +266,7 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { id: str
                         <CardFooter>
                             <Button type="submit" disabled={form.formState.isSubmitting}>
                                  {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Salva Modifiche
+                                 {isNew ? 'Crea Tipo Veicolo' : 'Salva Modifiche'}
                             </Button>
                         </CardFooter>
                     </Card>

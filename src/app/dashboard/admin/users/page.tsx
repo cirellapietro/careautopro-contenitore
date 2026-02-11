@@ -1,6 +1,6 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import {
@@ -58,20 +58,26 @@ export default function AdminUsersPage() {
     }
   }, [currentUser, userLoading, router]);
 
-  const handleDeleteUser = async () => {
+  const handleDeleteUser = () => {
     if (!userToDelete || !firestore) return;
-    try {
-        const userRef = doc(firestore, 'users', userToDelete.id);
-        await updateDoc(userRef, {
-            dataoraelimina: new Date().toISOString()
+    const userRef = doc(firestore, 'users', userToDelete.id);
+    const dataToUpdate = { dataoraelimina: new Date().toISOString() };
+    updateDoc(userRef, dataToUpdate)
+        .then(() => {
+            toast({ title: "Utente eliminato", description: "L'utente è stato contrassegnato come eliminato." });
+        })
+        .catch((serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per eliminare questo utente." });
+        })
+        .finally(() => {
+            setUserToDelete(null);
         });
-        toast({ title: "Utente eliminato", description: "L'utente è stato contrassegnato come eliminato." });
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: "Errore", description: "Impossibile eliminare l'utente." });
-    } finally {
-        setUserToDelete(null);
-    }
   };
 
 

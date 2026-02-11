@@ -1,6 +1,6 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { VehicleType } from '@/lib/types';
 import {
@@ -56,20 +56,27 @@ export default function AdminVehicleTypesPage() {
     }
   }, [currentUser, userLoading, router]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!vehicleTypeToDelete || !firestore) return;
-    try {
-        const docRef = doc(firestore, 'vehicleTypes', vehicleTypeToDelete.id);
-        await updateDoc(docRef, {
-            dataoraelimina: new Date().toISOString()
+    const docRef = doc(firestore, 'vehicleTypes', vehicleTypeToDelete.id);
+    const dataToUpdate = { dataoraelimina: new Date().toISOString() };
+
+    updateDoc(docRef, dataToUpdate)
+        .then(() => {
+            toast({ title: "Tipo veicolo eliminato", description: "Il tipo di veicolo è stato contrassegnato come eliminato." });
+        })
+        .catch((serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per eliminare questo tipo veicolo." });
+        })
+        .finally(() => {
+            setVehicleTypeToDelete(null);
         });
-        toast({ title: "Tipo veicolo eliminato", description: "Il tipo di veicolo è stato contrassegnato come eliminato." });
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: "Errore", description: "Impossibile eliminare il tipo veicolo." });
-    } finally {
-        setVehicleTypeToDelete(null);
-    }
   };
 
   if (userLoading || !currentUser || currentUser.role !== 'Amministratore') {

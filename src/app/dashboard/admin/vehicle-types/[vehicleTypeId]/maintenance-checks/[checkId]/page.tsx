@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -67,27 +67,32 @@ export default function AdminCheckEditPage({ params }: { params: PageParams }) {
         }
     }, [checkToEdit, form, isNew]);
 
-    const onSubmit = async (data: z.infer<typeof checkEditSchema>) => {
+    const onSubmit = (data: z.infer<typeof checkEditSchema>) => {
         if (!checkRef) return;
 
-        try {
-            const dataToSave = {
-                ...data,
-                vehicleTypeId: params.vehicleTypeId,
-            };
+        const dataToSave = {
+            ...data,
+            vehicleTypeId: params.vehicleTypeId,
+            ...(isNew && { id: checkRef.id }),
+        };
 
-            if (isNew) {
-                await setDoc(checkRef, { ...dataToSave, id: checkRef.id });
-                toast({ title: "Successo", description: "Controllo creato." });
-            } else {
-                await updateDoc(checkRef, dataToSave);
-                toast({ title: "Successo", description: "Controllo aggiornato." });
-            }
-            router.push(`/dashboard/admin/vehicle-types/${params.vehicleTypeId}`);
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: "Errore", description: "Impossibile salvare il controllo." });
-        }
+        const operationType = isNew ? 'create' : 'update';
+        const operation = isNew ? setDoc(checkRef, dataToSave, { merge: true }) : updateDoc(checkRef, dataToSave);
+
+        operation
+            .then(() => {
+                toast({ title: "Successo", description: isNew ? "Controllo creato." : "Controllo aggiornato." });
+                router.push(`/dashboard/admin/vehicle-types/${params.vehicleTypeId}`);
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: checkRef.path,
+                    operation: operationType as 'create' | 'update',
+                    requestResourceData: dataToSave,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per salvare questo controllo." });
+            });
     };
 
     if (userLoading || (isCheckLoading && !isNew)) {

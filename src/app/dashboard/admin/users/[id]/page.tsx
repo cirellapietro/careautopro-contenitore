@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
@@ -65,20 +65,28 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
         }
     }, [userToEdit, form]);
 
-    const onSubmit = async (data: z.infer<typeof userEditSchema>) => {
+    const onSubmit = (data: z.infer<typeof userEditSchema>) => {
         if (!userRef) return;
 
-        try {
-            await updateDoc(userRef, {
-                displayName: data.displayName,
-                role: data.role,
+        const dataToSave = {
+            displayName: data.displayName,
+            role: data.role,
+        };
+
+        updateDoc(userRef, dataToSave)
+            .then(() => {
+                toast({ title: "Successo", description: "Profilo utente aggiornato." });
+                router.push('/dashboard/admin/users');
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: userRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToSave,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per aggiornare questo utente." });
             });
-            toast({ title: "Successo", description: "Profilo utente aggiornato." });
-            router.push('/dashboard/admin/users');
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: "Errore", description: "Impossibile salvare il profilo." });
-        }
     };
 
     if (userLoading || isUserToEditLoading || areRolesLoading) {
