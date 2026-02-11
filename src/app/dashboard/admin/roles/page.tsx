@@ -1,6 +1,6 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { Role } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,20 +34,28 @@ export default function AdminRolesPage() {
     }
   }, [currentUser, userLoading, router]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!roleToDelete || !firestore) return;
-    try {
-        const docRef = doc(firestore, 'roles', roleToDelete.id);
-        await updateDoc(docRef, {
-            dataoraelimina: new Date().toISOString()
-        });
+    
+    const docRef = doc(firestore, 'roles', roleToDelete.id);
+    const dataToUpdate = { dataoraelimina: new Date().toISOString() };
+    
+    updateDoc(docRef, dataToUpdate)
+      .then(() => {
         toast({ title: "Ruolo eliminato", description: "Il ruolo è stato contrassegnato come eliminato." });
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: "Errore", description: "Impossibile eliminare il ruolo." });
-    } finally {
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: dataToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per eliminare questo ruolo." });
+      })
+      .finally(() => {
         setRoleToDelete(null);
-    }
+      });
   };
 
   if (userLoading || !currentUser || currentUser.role !== 'Amministratore') {

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -58,22 +58,29 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         }
     }, [roleToEdit, form, isNew]);
 
-    const onSubmit = async (data: z.infer<typeof roleEditSchema>) => {
+    const onSubmit = (data: z.infer<typeof roleEditSchema>) => {
         if (!roleRef) return;
-
-        try {
-            if (isNew) {
-                await setDoc(roleRef, { ...data, id: roleRef.id });
-                toast({ title: "Successo", description: "Ruolo creato." });
-            } else {
-                await updateDoc(roleRef, data);
-                toast({ title: "Successo", description: "Ruolo aggiornato." });
-            }
-            router.push('/dashboard/admin/roles');
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: "Errore", description: "Impossibile salvare il ruolo." });
-        }
+        
+        form.clearErrors();
+    
+        const dataToSave = isNew ? { ...data, id: roleRef.id } : data;
+        const operation = isNew ? setDoc(roleRef, dataToSave) : updateDoc(roleRef, dataToSave);
+        const operationType = isNew ? 'create' : 'update';
+    
+        operation
+            .then(() => {
+                toast({ title: "Successo", description: isNew ? "Ruolo creato." : "Ruolo aggiornato." });
+                router.push('/dashboard/admin/roles');
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: roleRef.path,
+                    operation: operationType as 'create' | 'update',
+                    requestResourceData: dataToSave,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: "Errore di Permesso", description: "Non disponi dei permessi per salvare questo ruolo." });
+            });
     };
 
     if (userLoading || (isRoleLoading && !isNew)) {
