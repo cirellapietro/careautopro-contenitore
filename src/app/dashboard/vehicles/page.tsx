@@ -139,10 +139,26 @@ export default function VehiclesPage() {
 
     // Effect to fetch initial stats and show mileage prompt
     useEffect(() => {
+        // Logic to show the mileage update prompt
         if (userVehicles && userVehicles.length > 0 && trackedVehicleId === null) {
-            if (!sessionStorage.getItem('mileagePromptShown')) {
-                setMileageModalOpen(true);
-                sessionStorage.setItem('mileagePromptShown', 'true');
+            const todayStr = new Date().toISOString().split('T')[0];
+            const lastPromptDate = localStorage.getItem('mileagePromptLastShown');
+
+            if (lastPromptDate !== todayStr) {
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+
+                const hasVehicleCreatedBeforeToday = userVehicles.some(vehicle => {
+                    // For old data before this feature, or vehicles created before today
+                    if (!vehicle.createdAt) return true; 
+                    const createdAtDate = new Date(vehicle.createdAt);
+                    return createdAtDate < todayStart;
+                });
+
+                if (hasVehicleCreatedBeforeToday) {
+                    setMileageModalOpen(true);
+                    localStorage.setItem('mileagePromptLastShown', todayStr);
+                }
             }
         } else if (userVehicles && userVehicles.length === 0) {
             setTrackedVehicleId(null);
@@ -199,7 +215,7 @@ export default function VehiclesPage() {
         } else {
             setVehiclesWithStats([]);
         }
-    }, [user, firestore, userVehicles, toast]);
+    }, [user, firestore, userVehicles, toast, trackedVehicleId]);
 
     const handleTrackingChange = (vehicleId: string, isChecked: boolean) => {
         const previouslyTrackedId = trackedVehicleId;

@@ -85,10 +85,11 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       name: '',
       licensePlate: '',
       registrationDate: '',
+      currentMileage: undefined,
     },
   });
 
-  // When the dialog opens, reset everything
+   // When the dialog opens, reset everything
   useEffect(() => {
     if (open) {
       form.reset({
@@ -183,6 +184,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         type: selectedVehicleType.name,
         currentMileage: mileage,
         lastMaintenanceDate: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
       };
       batch.set(newVehicleRef, newVehicle);
 

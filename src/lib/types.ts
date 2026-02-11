@@ -49,6 +49,7 @@ export type Vehicle = {
   vehicleTypeId: string;
   currentMileage: number;
   lastMaintenanceDate: string;
+  createdAt?: string;
   dataoraelimina?: string;
 };
 
