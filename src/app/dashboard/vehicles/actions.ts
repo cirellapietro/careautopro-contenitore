@@ -4,11 +4,11 @@ import { getMaintenanceAdvice } from '@/ai/flows/predictive-maintenance-advisor'
 import { z } from 'zod';
 
 const MaintenanceAdviceSchema = z.object({
-  vehicleType: z.string(),
+  vehicleType: z.string().min(1, 'Il tipo di veicolo è obbligatorio.'),
   kilometersDriven: z.coerce.number(),
-  lastMaintenanceDate: z.string(),
-  maintenanceHistory: z.string(),
-  drivingStyle: z.string(),
+  lastMaintenanceDate: z.string().min(1, 'La data di ultima manutenzione è obbligatoria.'),
+  maintenanceHistory: z.string().min(1, 'La cronologia della manutenzione è obbligatoria.'),
+  drivingStyle: z.string().min(1, 'Lo stile di guida è obbligatorio.'),
 });
 
 type State = {

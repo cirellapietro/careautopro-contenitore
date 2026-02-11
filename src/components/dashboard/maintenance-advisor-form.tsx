@@ -100,7 +100,7 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Stile di Guida</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleziona il tuo stile di guida" />
@@ -112,6 +112,8 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
                         <SelectItem value="conservative">Prudente</SelectItem>
                       </SelectContent>
                     </Select>
+                    {/* This hidden input ensures the value from the custom Select is submitted with the form */}
+                    <input type="hidden" name={field.name} value={field.value} />
                     <FormMessage />
                   </FormItem>
                 )}
