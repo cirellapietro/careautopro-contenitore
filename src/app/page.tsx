@@ -4,7 +4,6 @@ import { Car, Wrench, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Logo } from '@/components/logo';
-import { version } from '../../package.json';
 
 export default function LandingPage() {
   return (
@@ -89,7 +88,7 @@ export default function LandingPage() {
       <footer className="bg-background py-6">
         <div className="container mx-auto flex items-center justify-between px-4 text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} CareAutoPro. Tutti i diritti riservati.</p>
-          <p>Versione: {version}</p>
+          <p>Versione: 1.0.0</p>
         </div>
       </footer>
     </div>

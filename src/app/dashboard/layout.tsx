@@ -7,7 +7,6 @@ import { Header } from '@/components/layout/header';
 import { useUser } from '@/firebase/auth/use-user';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { version } from '../../../package.json';
 
 export default function DashboardLayout({
   children,
@@ -68,7 +67,7 @@ export default function DashboardLayout({
       </main>
       <footer className="mt-auto border-t bg-secondary py-4">
         <div className="container flex items-center justify-end">
-            <p className="text-xs text-muted-foreground">Versione: {version}</p>
+            <p className="text-xs text-muted-foreground">Versione: 1.0.0</p>
         </div>
       </footer>
     </div>
