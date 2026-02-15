@@ -42,6 +42,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import type { VehicleType, MaintenanceCheck } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { fetchMaintenancePlan } from '@/ai/flows/fetch-maintenance-plan';
 
 
 const addVehicleSchema = z.object({
@@ -168,56 +169,94 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     if (!user || !firestore || !selectedVehicleType) return;
     setIsSubmitting(true);
 
-    const batch = writeBatch(firestore);
     const newVehicleRef = doc(collection(firestore, `users/${user.uid}/vehicles`));
-    const mileage = values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
     const nameParts = values.name.split(' ');
-    const make = nameParts[0];
-    const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim();
+    const make = nameParts[0] || '';
+    const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim() || '';
 
-    const newVehicleData = {
-      ...values,
-      id: newVehicleRef.id,
-      userId: user.uid,
-      make: make || '',
-      model: model || '',
-      type: selectedVehicleType.name,
-      currentMileage: mileage,
-      lastMaintenanceDate: new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
-    };
-    batch.set(newVehicleRef, newVehicleData);
+    try {
+        const firstBatch = writeBatch(firestore);
+        const mileage = values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
 
-    const checksRef = collection(firestore, `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`);
-    const checksSnap = await getDocs(checksRef);
-    const checks = checksSnap.docs.map((d) => d.data() as MaintenanceCheck);
-    
-    for (const check of checks) {
-        const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
-        batch.set(newInterventionRef, {
-            id: newInterventionRef.id,
-            vehicleId: newVehicleRef.id,
-            description: check.description,
-            status: 'Richiesto',
-            urgency: 'Media',
-            notes: `Intervento generato automaticamente. Aggiornare con la data dell'ultimo intervento eseguito.`,
-            scheduledDate: new Date().toISOString(),
-        });
-    }
+        const newVehicleData = {
+          ...values,
+          id: newVehicleRef.id,
+          userId: user.uid,
+          make,
+          model,
+          type: selectedVehicleType.name,
+          currentMileage: mileage,
+          lastMaintenanceDate: new Date().toISOString().split('T')[0],
+          createdAt: new Date().toISOString(),
+        };
+        firstBatch.set(newVehicleRef, newVehicleData);
 
-    batch.commit()
-      .then(() => {
+        const checksRef = collection(firestore, `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`);
+        const checksSnap = await getDocs(checksRef);
+        const genericChecks = checksSnap.docs.map((d) => d.data() as MaintenanceCheck);
+        
+        for (const check of genericChecks) {
+            const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
+            firstBatch.set(newInterventionRef, {
+                id: newInterventionRef.id,
+                vehicleId: newVehicleRef.id,
+                description: check.description,
+                status: 'Richiesto',
+                urgency: 'Media',
+                notes: `Intervento generato automaticamente. Aggiornare con la data dell'ultimo intervento eseguito.`,
+                scheduledDate: new Date().toISOString(),
+            });
+        }
+
+        await firstBatch.commit();
         toast({
-            title: 'Successo!',
-            description: 'Veicolo aggiunto e interventi iniziali generati.',
+            title: 'Veicolo creato!',
+            description: 'Ora cerco i controlli di manutenzione specifici online...',
         });
+
+        // AI part
+        try {
+            const aiChecks = await fetchMaintenancePlan({ make, model });
+            
+            if (aiChecks && aiChecks.length > 0) {
+                const aiBatch = writeBatch(firestore);
+                const existingDescriptions = new Set(genericChecks.map(c => c.description.toLowerCase()));
+
+                for (const check of aiChecks) {
+                    if (existingDescriptions.has(check.description.toLowerCase())) continue;
+
+                    const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
+                    aiBatch.set(newInterventionRef, {
+                        id: newInterventionRef.id,
+                        vehicleId: newVehicleRef.id,
+                        description: check.description,
+                        status: 'Pianificato',
+                        urgency: 'Media',
+                        notes: `Suggerito dall'AI per ${make} ${model}. Verifica la corrispondenza con il libretto di manutenzione.`,
+                    });
+                }
+                await aiBatch.commit();
+                toast({
+                    title: 'Suggerimenti AI aggiunti!',
+                    description: 'Aggiunti controlli di manutenzione specifici per il tuo modello.',
+                });
+            }
+        } catch (aiError) {
+            console.error("Error fetching AI maintenance plan:", aiError);
+            toast({
+              variant: 'destructive',
+              title: 'Errore Assistente AI',
+              description: "Impossibile recuperare i controlli suggeriti.",
+            });
+        }
+        
         setNewVehicleId(newVehicleRef.id);
-      })
-      .catch((serverError) => {
+
+    } catch (serverError) {
         const permissionError = new FirestorePermissionError({
           path: `users/${user.uid}/vehicles`,
           operation: 'create',
-          requestResourceData: { vehicle: newVehicleData, checks: checks.length },
+          requestResourceData: { vehicleData: values },
         });
         errorEmitter.emit('permission-error', permissionError);
         toast({
@@ -225,10 +264,9 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
           title: 'Errore di Permesso',
           description: "Non disponi dei permessi per aggiungere un nuovo veicolo.",
         });
-      })
-      .finally(() => {
+    } finally {
         setIsSubmitting(false);
-      });
+    }
   };
 
   const currentYear = new Date().getFullYear();
@@ -273,7 +311,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                 <DialogTitle>Aggiungi Nuovo Veicolo</DialogTitle>
                 <DialogDescription>
                   Inserisci i dettagli del tuo veicolo. Verranno generati
-                  automaticamente gli interventi di manutenzione di base.
+                  automaticamente gli interventi di manutenzione di base e quelli specifici per il tuo modello.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
