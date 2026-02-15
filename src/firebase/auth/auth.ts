@@ -11,6 +11,8 @@ import {
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, Firestore, getDoc, updateDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '../config';
+import { errorEmitter } from '../error-emitter';
+import { FirestorePermissionError } from '../errors';
 
 let auth: Auth;
 let db: Firestore;
@@ -46,7 +48,15 @@ async function createUserDocument(uid: string, email: string | null, displayName
     notificationChannels: ['app', 'email'],
     notificationReminderTime: 3, // days
   };
-  await setDoc(userRef, userData, { merge: true });
+  
+  setDoc(userRef, userData, { merge: true }).catch(serverError => {
+      const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'create',
+          requestResourceData: userData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+  });
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<void> {
@@ -62,7 +72,15 @@ export async function signInWithEmail(email: string, password: string): Promise<
     if (userDoc.exists()) {
       // If doc exists, and role is not admin, update it.
       if (userDoc.data().role !== 'Amministratore') {
-        await updateDoc(userRef, { role: 'Amministratore' });
+        const dataToUpdate = { role: 'Amministratore' };
+        updateDoc(userRef, dataToUpdate).catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
       }
     } else {
       // If doc does not exist, create it.
@@ -95,7 +113,15 @@ export async function signInWithGoogle(): Promise<void> {
   } else {
     // Existing user: explicitly check and set admin role if needed.
     if (user.email === 'cirellapietro@gmail.com' && docSnap.data().role !== 'Amministratore') {
-        await updateDoc(userRef, { role: 'Amministratore' });
+        const dataToUpdate = { role: 'Amministratore' };
+        updateDoc(userRef, dataToUpdate).catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
     }
   }
 }
