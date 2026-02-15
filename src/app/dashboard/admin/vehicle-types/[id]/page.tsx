@@ -1,3 +1,3 @@
 // This file is intentionally modified to resolve a Next.js routing conflict.
-// By not exporting a default React component, it is no longer treated as a page.
-export const Deactivated = {};
+// It is not a page and should not be treated as one.
+export type Deactivated = {};
