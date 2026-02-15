@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const MaintenancePlanInputSchema = z.object({
+const MaintenancePlanInputSchema = z.object({
   make: z.string().describe('The make of the vehicle (e.g., Fiat).'),
   model: z.string().describe('The model of the vehicle (e.g., Panda).'),
 });
@@ -23,7 +23,7 @@ const MaintenanceCheckSchema = z.object({
     intervalTime: z.number().optional().describe("Time interval in months for the check."),
 });
 
-export const MaintenancePlanOutputSchema = z.array(MaintenanceCheckSchema);
+const MaintenancePlanOutputSchema = z.array(MaintenanceCheckSchema);
 export type MaintenancePlanOutput = z.infer<typeof MaintenancePlanOutputSchema>;
 
 
