@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
@@ -313,7 +313,21 @@ export default function VehiclesPage() {
                 const previousVehicle = vehiclesWithStats.find(v => v.id === previouslyTrackedId);
                  if (previousVehicle && firestore && user) {
                     const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, previouslyTrackedId);
-                    writeBatch(firestore).update(vehicleRef, { currentMileage: previousVehicle.currentMileage }).commit();
+                    const dataToUpdate = { currentMileage: previousVehicle.currentMileage };
+                    updateDoc(vehicleRef, dataToUpdate)
+                        .catch(serverError => {
+                            const permissionError = new FirestorePermissionError({
+                                path: vehicleRef.path,
+                                operation: 'update',
+                                requestResourceData: dataToUpdate
+                            });
+                            errorEmitter.emit('permission-error', permissionError);
+                            toast({
+                                variant: 'destructive',
+                                title: 'Errore Salvataggio',
+                                description: `Impossibile salvare i dati per il veicolo precedente.`
+                            });
+                        });
                 }
             }
             setTrackedVehicleId(vehicleId);
@@ -422,4 +436,5 @@ export default function VehiclesPage() {
             )}
         </div>
     );
-}
+
+    
