@@ -93,14 +93,20 @@ export const seedGlobalData = async (firestore: Firestore) => {
         });
       });
     }
-  } catch (error) {
-    const permissionError = new FirestorePermissionError({
-        path: 'roles',
-        operation: 'list',
-        requestResourceData: { context: 'Checking for existing roles during global seed.' }
-    });
-    errorEmitter.emit('permission-error', permissionError);
-    return;
+  } catch (error: any) {
+    if (error?.code === 'permission-denied') {
+        // This is an expected error for non-admin/unauthenticated users.
+        // We can log it for debugging but shouldn't crash the app.
+        console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
+    } else {
+        // For other unexpected errors, we still want to surface them for debugging.
+        const permissionError = new FirestorePermissionError({
+            path: 'roles',
+            operation: 'list',
+            requestResourceData: { context: 'Checking for existing roles during global seed.' }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
   }
 
   try {
