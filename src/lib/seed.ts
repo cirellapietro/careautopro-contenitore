@@ -11,6 +11,8 @@ import {
 } from 'firebase/firestore';
 import { mockVehicles, mockInterventions, mockDrivingSessions } from './mock-data';
 import type { MaintenanceCheck, VehicleType, Role } from './types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // Data for global collections
 const vehicleTypeData: VehicleType[] = [
@@ -117,11 +119,19 @@ export const seedGlobalData = async (firestore: Firestore) => {
   }
 
   if (needsCommit) {
-    try {
-      await batch.commit();
-    } catch (error) {
-      console.error("Error during global data seeding:", error);
-    }
+    batch.commit().catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+            path: '/ (global data seed)',
+            operation: 'write',
+            requestResourceData: {
+                message: 'Attempted to seed global collections like /roles and /vehicleTypes. This operation requires administrator privileges.',
+                roleCount: roleData.length,
+                vehicleTypeCount: vehicleTypeData.length,
+            },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        console.error("Permission error during global data seeding:", serverError);
+    });
   }
 };
 
