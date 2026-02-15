@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase } from '@/firebase';
+import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -65,32 +65,40 @@ export function UpdateMileageDialog({ open, onOpenChange, vehicles }: UpdateMile
     name: 'vehicles'
   });
 
-  const onSubmit = async (data: UpdateMileageFormValues) => {
+  const onSubmit = (data: UpdateMileageFormValues) => {
     if (!user || !firestore) return;
     setIsSubmitting(true);
-    try {
-      const batch = writeBatch(firestore);
-      data.vehicles.forEach(vehicle => {
-        const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicle.id);
-        batch.update(vehicleRef, { currentMileage: vehicle.currentMileage });
-      });
-      await batch.commit();
 
-      toast({
-        title: 'Successo!',
-        description: 'Chilometraggio dei veicoli aggiornato.',
+    const batch = writeBatch(firestore);
+    data.vehicles.forEach(vehicle => {
+      const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicle.id);
+      batch.update(vehicleRef, { currentMileage: vehicle.currentMileage });
+    });
+
+    batch.commit()
+      .then(() => {
+        toast({
+          title: 'Successo!',
+          description: 'Chilometraggio dei veicoli aggiornato.',
+        });
+        onOpenChange(false);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: `users/${user.uid}/vehicles`,
+          operation: 'update',
+          requestResourceData: data.vehicles,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: 'destructive',
+          title: 'Errore di Permesso',
+          description: 'Impossibile aggiornare il chilometraggio.',
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error updating mileages:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Errore',
-        description: 'Impossibile aggiornare il chilometraggio.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (

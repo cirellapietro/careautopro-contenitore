@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,13 +11,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase } from '@/firebase';
+import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import type { NotificationChannel } from '@/lib/types';
 
+const profileSchema = z.object({
+  displayName: z.string().min(2, "Il nome è obbligatorio."),
+});
 
 const notificationSchema = z.object({
   notificationChannels: z.array(z.string()).min(1, "Seleziona almeno un canale."),
@@ -38,39 +41,79 @@ export default function ProfilePage() {
     const { firestore } = useFirebase();
     const { toast } = useToast();
 
+    const [isProfileSubmitting, setProfileSubmitting] = useState(false);
+    const [isNotificationSubmitting, setNotificationSubmitting] = useState(false);
+
+    const profileForm = useForm<z.infer<typeof profileSchema>>({
+        resolver: zodResolver(profileSchema),
+    });
+
     const notificationForm = useForm<z.infer<typeof notificationSchema>>({
         resolver: zodResolver(notificationSchema),
-        defaultValues: {
-            notificationChannels: [],
-            notificationReminderTime: 3,
-        }
     });
 
     useEffect(() => {
         if (user) {
+            profileForm.reset({
+                displayName: user.displayName || '',
+            });
             notificationForm.reset({
                 notificationChannels: user.notificationChannels || ['app', 'email'],
                 notificationReminderTime: user.notificationReminderTime || 3,
             });
         }
-    }, [user, notificationForm]);
+    }, [user, profileForm, notificationForm]);
 
-    const onNotificationSubmit = async (data: z.infer<typeof notificationSchema>) => {
+    const onProfileSubmit = (data: z.infer<typeof profileSchema>) => {
         if (!user || !firestore) return;
-        
-        try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, {
-                notificationChannels: data.notificationChannels,
-                notificationReminderTime: data.notificationReminderTime,
-            });
-            toast({ title: "Successo", description: "Impostazioni di notifica aggiornate." });
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: "Errore", description: "Impossibile salvare le impostazioni." });
-        }
-    }
+        setProfileSubmitting(true);
+        const userRef = doc(firestore, 'users', user.uid);
+        const dataToUpdate = { displayName: data.displayName };
 
+        updateDoc(userRef, dataToUpdate)
+            .then(() => {
+                toast({ title: "Successo", description: "Il tuo nome è stato aggiornato." });
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: userRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: "Errore di Permesso", description: "Impossibile salvare il profilo." });
+            })
+            .finally(() => {
+                setProfileSubmitting(false);
+            });
+    };
+
+    const onNotificationSubmit = (data: z.infer<typeof notificationSchema>) => {
+        if (!user || !firestore) return;
+        setNotificationSubmitting(true);
+        const userRef = doc(firestore, 'users', user.uid);
+        const dataToUpdate = {
+            notificationChannels: data.notificationChannels,
+            notificationReminderTime: data.notificationReminderTime,
+        };
+        
+        updateDoc(userRef, dataToUpdate)
+            .then(() => {
+                toast({ title: "Successo", description: "Impostazioni di notifica aggiornate." });
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: userRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: "Errore di Permesso", description: "Impossibile salvare le impostazioni." });
+            })
+            .finally(() => {
+                setNotificationSubmitting(false);
+            });
+    }
 
     if (!user) return null;
 
@@ -81,23 +124,39 @@ export default function ProfilePage() {
                 <p className="text-muted-foreground">Gestisci le informazioni del tuo account e le preferenze.</p>
             </div>
             <Card>
-                <CardHeader>
-                    <CardTitle>I tuoi dati</CardTitle>
-                    <CardDescription>Aggiorna il tuo nome e la tua email.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Nome completo</Label>
-                        <Input id="name" defaultValue={user.displayName || ''} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue={user.email || ''} readOnly />
-                    </div>
-                </CardContent>
-                <CardFooter>
-                     <Button>Salva Modifiche</Button>
-                </CardFooter>
+                <Form {...profileForm}>
+                    <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
+                        <CardHeader>
+                            <CardTitle>I tuoi dati</CardTitle>
+                            <CardDescription>Aggiorna il tuo nome e la tua email.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField
+                                control={profileForm.control}
+                                name="displayName"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nome completo</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Il tuo nome..." {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input id="email" type="email" value={user.email || ''} readOnly disabled />
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button type="submit" disabled={isProfileSubmitting}>
+                                {isProfileSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salva Modifiche
+                            </Button>
+                        </CardFooter>
+                    </form>
+                </Form>
             </Card>
             <Card>
                 <CardHeader>
@@ -176,8 +235,8 @@ export default function ProfilePage() {
                                 />
                         </CardContent>
                         <CardFooter>
-                            <Button type="submit" disabled={notificationForm.formState.isSubmitting}>
-                                {notificationForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <Button type="submit" disabled={isNotificationSubmitting}>
+                                {isNotificationSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Salva Impostazioni
                             </Button>
                         </CardFooter>

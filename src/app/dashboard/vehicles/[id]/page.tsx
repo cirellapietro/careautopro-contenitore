@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 import type { MaintenanceIntervention, Vehicle } from '@/lib/types';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, useDoc, useCollection } from '@/firebase';
+import { useFirebase, useDoc, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,15 +40,24 @@ function MaintenanceTable({ interventions, isLoading, vehicleId }: { interventio
         if (!firestore || !vehicleId || !user) return;
 
         const interventionRef = doc(firestore, `users/${user.uid}/vehicles/${vehicleId}/maintenanceInterventions`, interventionId);
-        updateDoc(interventionRef, {
+        const dataToUpdate = {
             status: 'Completato',
             completionDate: new Date().toISOString(),
-        }).then(() => {
-            toast({ title: 'Successo!', description: 'Intervento segnato come completato.' });
-        }).catch((error) => {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile aggiornare l\'intervento.' });
-        })
+        };
+
+        updateDoc(interventionRef, dataToUpdate)
+            .then(() => {
+                toast({ title: 'Successo!', description: 'Intervento segnato come completato.' });
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: interventionRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: 'Errore di Permesso', description: 'Impossibile aggiornare l\'intervento.' });
+            });
     }
     
     if (isLoading) {

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase } from '@/firebase';
+import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import {
   collection,
   doc,
@@ -160,75 +160,69 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
 
   const onSubmit = async (values: AddVehicleFormValues) => {
     if (!user || !firestore || !selectedVehicleType) return;
-
     setIsSubmitting(true);
-    try {
-      const batch = writeBatch(firestore);
-      const newVehicleRef = doc(
-        collection(firestore, `users/${user.uid}/vehicles`)
-      );
 
-      const mileage =
-        values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
-        
-      const nameParts = values.name.split(' ');
-      const make = nameParts[0];
-      const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim();
+    const batch = writeBatch(firestore);
+    const newVehicleRef = doc(collection(firestore, `users/${user.uid}/vehicles`));
+    const mileage = values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
+    const nameParts = values.name.split(' ');
+    const make = nameParts[0];
+    const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim();
 
-      const newVehicle = {
-        ...values,
-        id: newVehicleRef.id,
-        userId: user.uid,
-        make: make || '',
-        model: model || '',
-        type: selectedVehicleType.name,
-        currentMileage: mileage,
-        lastMaintenanceDate: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString(),
-      };
-      batch.set(newVehicleRef, newVehicle);
+    const newVehicleData = {
+      ...values,
+      id: newVehicleRef.id,
+      userId: user.uid,
+      make: make || '',
+      model: model || '',
+      type: selectedVehicleType.name,
+      currentMileage: mileage,
+      lastMaintenanceDate: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+    };
+    batch.set(newVehicleRef, newVehicleData);
 
-      const checksRef = collection(
-        firestore,
-        `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`
-      );
-      const checksSnap = await getDocs(checksRef);
-      const checks = checksSnap.docs.map(
-        (d) => d.data() as MaintenanceCheck
-      );
-
-      for (const check of checks) {
-        const newInterventionRef = doc(
-          collection(newVehicleRef, 'maintenanceInterventions')
-        );
+    const checksRef = collection(firestore, `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`);
+    const checksSnap = await getDocs(checksRef);
+    const checks = checksSnap.docs.map((d) => d.data() as MaintenanceCheck);
+    
+    for (const check of checks) {
+        const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
         batch.set(newInterventionRef, {
-          id: newInterventionRef.id,
-          vehicleId: newVehicleRef.id,
-          description: check.description,
-          status: 'Richiesto',
-          urgency: 'Media',
-          notes: `Intervento generato automaticamente. Aggiornare con la data dell'ultimo intervento eseguito.`,
-          scheduledDate: new Date().toISOString(),
+            id: newInterventionRef.id,
+            vehicleId: newVehicleRef.id,
+            description: check.description,
+            status: 'Richiesto',
+            urgency: 'Media',
+            notes: `Intervento generato automaticamente. Aggiornare con la data dell'ultimo intervento eseguito.`,
+            scheduledDate: new Date().toISOString(),
         });
-      }
-
-      await batch.commit();
-
-      toast({
-        title: 'Successo!',
-        description: 'Veicolo aggiunto e interventi iniziali generati.',
-      });
-      setNewVehicleId(newVehicleRef.id);
-    } catch (error) {
-      console.error('Error adding vehicle:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Errore',
-        description: "Si è verificato un problema durante l'aggiunta del veicolo.",
-      });
-    } finally {
-      setIsSubmitting(false);
     }
+
+    batch.commit()
+      .then(() => {
+        toast({
+            title: 'Successo!',
+            description: 'Veicolo aggiunto e interventi iniziali generati.',
+        });
+        setNewVehicleId(newVehicleRef.id);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: `users/${user.uid}/vehicles`,
+          operation: 'create',
+          requestResourceData: { vehicle: newVehicleData, checks: checks.length },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: 'destructive',
+          title: 'Errore di Permesso',
+          description: "Non disponi dei permessi per aggiungere un nuovo veicolo.",
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const currentYear = new Date().getFullYear();
