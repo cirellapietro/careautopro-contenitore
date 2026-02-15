@@ -137,7 +137,13 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         );
         setVehicleTypes(types);
       } catch (error) {
-        console.error('Error fetching vehicle types:', error);
+        const typesRef = collection(firestore, 'vehicleTypes');
+        const permissionError = new FirestorePermissionError({
+            path: typesRef.path,
+            operation: 'list',
+            requestResourceData: { context: 'Failed to fetch vehicle types for the add vehicle form.' }
+        });
+        errorEmitter.emit('permission-error', permissionError);
         toast({
           variant: 'destructive',
           title: 'Errore',

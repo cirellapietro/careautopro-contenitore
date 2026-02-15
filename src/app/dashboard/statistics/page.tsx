@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase } from '@/firebase';
+import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { DailyStat, DrivingSession, MaintenanceIntervention, Vehicle } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
@@ -104,6 +104,12 @@ export default function StatisticsPage() {
                 setDrivingSessions(sortedSessions.slice(0, 5));
 
             } catch (error) {
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}/ (sub-collections)`,
+                    operation: 'list',
+                    requestResourceData: { context: 'Failed to fetch statistics data. Check permissions for vehicles and its sub-collections.' }
+                });
+                errorEmitter.emit('permission-error', permissionError);
                 console.error("Error fetching statistics:", error);
             } finally {
                 setLoading(false);

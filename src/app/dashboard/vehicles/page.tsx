@@ -255,7 +255,12 @@ export default function VehiclesPage() {
                 );
                 setVehiclesWithStats(processedVehicles);
             } catch (error) {
-                 console.error("Error fetching vehicle stats:", error);
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}/vehicles/.../dailyStatistics`,
+                    operation: 'list',
+                    requestResourceData: { context: 'Failed to fetch vehicle daily stats.' }
+                });
+                errorEmitter.emit('permission-error', permissionError);
                 toast({
                     variant: 'destructive',
                     title: 'Errore',

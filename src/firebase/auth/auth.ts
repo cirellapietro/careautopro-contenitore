@@ -67,25 +67,29 @@ export async function signInWithEmail(email: string, password: string): Promise<
   if (userCredential.user && email === 'cirellapietro@gmail.com') {
     const firestore = getFirebaseDb();
     const userRef = doc(firestore, 'users', userCredential.user.uid);
-    const userDoc = await getDoc(userRef);
-
-    if (userDoc.exists()) {
-      // If doc exists, and role is not admin, update it.
-      if (userDoc.data().role !== 'Amministratore') {
-        const dataToUpdate = { role: 'Amministratore' };
-        updateDoc(userRef, dataToUpdate).catch(serverError => {
-            const permissionError = new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'update',
-                requestResourceData: dataToUpdate,
+    try {
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+          if (userDoc.data().role !== 'Amministratore') {
+            const dataToUpdate = { role: 'Amministratore' };
+            updateDoc(userRef, dataToUpdate).catch(serverError => {
+                const permissionError = new FirestorePermissionError({
+                    path: userRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate,
+                });
+                errorEmitter.emit('permission-error', permissionError);
             });
-            errorEmitter.emit('permission-error', permissionError);
+          }
+        } else {
+          await createUserDocument(userCredential.user.uid, userCredential.user.email, userCredential.user.displayName, userCredential.user.photoURL);
+        }
+    } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'get',
         });
-      }
-    } else {
-      // If doc does not exist, create it.
-      // This handles cases where auth user exists but Firestore doc creation failed.
-      await createUserDocument(userCredential.user.uid, userCredential.user.email, userCredential.user.displayName, userCredential.user.photoURL);
+        errorEmitter.emit('permission-error', permissionError);
     }
   }
 }
@@ -105,24 +109,32 @@ export async function signInWithGoogle(): Promise<void> {
   
   const firestore = getFirebaseDb();
   const userRef = doc(firestore, 'users', user.uid);
-  const docSnap = await getDoc(userRef);
   
-  if (!docSnap.exists()) {
-    // New user via Google: createUserDocument will set the role correctly based on email.
-    await createUserDocument(user.uid, user.email, user.displayName, user.photoURL);
-  } else {
-    // Existing user: explicitly check and set admin role if needed.
-    if (user.email === 'cirellapietro@gmail.com' && docSnap.data().role !== 'Amministratore') {
-        const dataToUpdate = { role: 'Amministratore' };
-        updateDoc(userRef, dataToUpdate).catch(serverError => {
-            const permissionError = new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'update',
-                requestResourceData: dataToUpdate,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+  try {
+    const docSnap = await getDoc(userRef);
+    if (!docSnap.exists()) {
+      // New user via Google: createUserDocument will set the role correctly based on email.
+      await createUserDocument(user.uid, user.email, user.displayName, user.photoURL);
+    } else {
+      // Existing user: explicitly check and set admin role if needed.
+      if (user.email === 'cirellapietro@gmail.com' && docSnap.data().role !== 'Amministratore') {
+          const dataToUpdate = { role: 'Amministratore' };
+          updateDoc(userRef, dataToUpdate).catch(serverError => {
+              const permissionError = new FirestorePermissionError({
+                  path: userRef.path,
+                  operation: 'update',
+                  requestResourceData: dataToUpdate,
+              });
+              errorEmitter.emit('permission-error', permissionError);
+          });
+      }
     }
+  } catch (serverError) {
+      const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'get',
+      });
+      errorEmitter.emit('permission-error', permissionError);
   }
 }
 
