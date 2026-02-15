@@ -20,7 +20,7 @@ import type { Vehicle, DailyStat } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
 import { UpdateMileageDialog } from '@/components/dashboard/update-mileage-dialog';
-import { calculateDistance } from '@/lib/utils';
+import { calculateDistance, cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 type VehicleWithStats = Vehicle & {
@@ -216,7 +216,9 @@ export default function VehiclesPage() {
             }
         }
         
-        if (!userVehicles) {
+        const visibleUserVehicles = userVehicles?.filter(v => !v.dataoraelimina);
+        
+        if (!visibleUserVehicles) {
             setVehiclesWithStats([]);
             return;
         }
@@ -225,7 +227,7 @@ export default function VehiclesPage() {
             if (!firestore || !user) return;
             try {
                 const processedVehicles: VehicleWithStats[] = await Promise.all(
-                    userVehicles.map(async (vehicle) => {
+                    visibleUserVehicles.map(async (vehicle) => {
                         const statsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
                         const statsSnap = await getDocs(statsRef);
                         const dailyStats = statsSnap.docs.map(doc => doc.data() as DailyStat);
@@ -262,7 +264,7 @@ export default function VehiclesPage() {
             }
         };
     
-        if (userVehicles.length > 0) {
+        if (visibleUserVehicles.length > 0) {
             fetchStats();
         } else {
             setVehiclesWithStats([]);
@@ -377,8 +379,8 @@ export default function VehiclesPage() {
                             {vehiclesWithStats.map((vehicle) => (
                                 <TableRow 
                                     key={vehicle.id}
-                                    className="cursor-pointer"
-                                    onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}`)}
+                                    className={cn("cursor-pointer", vehicle.dataoraelimina && 'text-muted-foreground opacity-50')}
+                                    onClick={() => !vehicle.dataoraelimina && router.push(`/dashboard/vehicles/${vehicle.id}`)}
                                 >
                                     <TableCell>{vehicle.licensePlate}</TableCell>
                                     <TableCell>
@@ -407,6 +409,7 @@ export default function VehiclesPage() {
                                             checked={trackedVehicleId === vehicle.id}
                                             onCheckedChange={(isChecked) => handleTrackingChange(vehicle.id, isChecked)}
                                             aria-label={`Attiva o disattiva il tracking GPS per ${vehicle.name}`}
+                                            disabled={!!vehicle.dataoraelimina}
                                         />
                                     </TableCell>
                                     <TableCell>{vehicle.type}</TableCell>

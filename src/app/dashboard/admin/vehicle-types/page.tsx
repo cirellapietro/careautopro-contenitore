@@ -86,6 +86,8 @@ export default function AdminVehicleTypesPage() {
       </div>
     );
   }
+  
+  const visibleVehicleTypes = vehicleTypes?.filter(vt => !vt.dataoraelimina);
 
   return (
     <>
@@ -121,19 +123,19 @@ export default function AdminVehicleTypesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vehicleTypes && vehicleTypes.map(vt => (
+                  {visibleVehicleTypes && visibleVehicleTypes.map(vt => (
                     <TableRow 
                       key={vt.id}
                       className={cn("cursor-pointer", vt.dataoraelimina && 'text-muted-foreground opacity-50')}
-                      onClick={() => router.push(`/dashboard/admin/vehicle-types/${vt.id}`)}
+                      onClick={() => !vt.dataoraelimina && router.push(`/dashboard/admin/vehicle-types/${vt.id}`)}
                     >
                       <TableCell className="font-medium">{vt.name}</TableCell>
                       <TableCell>{vt.averageAnnualMileage.toLocaleString('it-IT')} km</TableCell>
                       <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/vehicle-types/${vt.id}`)}}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/vehicle-types/${vt.id}`)}} disabled={!!vt.dataoraelimina}>
                               <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setVehicleTypeToDelete(vt); }}>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setVehicleTypeToDelete(vt); }} disabled={!!vt.dataoraelimina}>
                               <Trash2 className="h-4 w-4" />
                           </Button>
                       </TableCell>

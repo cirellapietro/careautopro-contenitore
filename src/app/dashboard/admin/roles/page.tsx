@@ -66,6 +66,8 @@ export default function AdminRolesPage() {
     );
   }
 
+  const visibleRoles = roles?.filter(r => !r.dataoraelimina);
+
   return (
     <>
       <div className="space-y-6">
@@ -82,7 +84,7 @@ export default function AdminRolesPage() {
           <CardHeader>
             <CardTitle>Elenco Ruoli</CardTitle>
             <CardDescription>
-              Visualizza e gestisci i ruoli utente disponibili nell'applicazione.
+              Visualizza e gestisci i ruoli utente disponibili nell'applicazione. I ruoli eliminati non sono visibili.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -100,19 +102,19 @@ export default function AdminRolesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {roles && roles.map(role => (
+                  {visibleRoles && visibleRoles.map(role => (
                     <TableRow 
                       key={role.id}
                       className={cn("cursor-pointer", role.dataoraelimina && 'text-muted-foreground opacity-50')}
-                      onClick={() => router.push(`/dashboard/admin/roles/${role.id}`)}
+                      onClick={() => !role.dataoraelimina && router.push(`/dashboard/admin/roles/${role.id}`)}
                     >
                       <TableCell className="font-medium">{role.name}</TableCell>
                       <TableCell>{role.description}</TableCell>
                       <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/roles/${role.id}`)}}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/roles/${role.id}`)}} disabled={!!role.dataoraelimina}>
                               <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); }}>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); }} disabled={!!role.dataoraelimina}>
                               <Trash2 className="h-4 w-4" />
                           </Button>
                       </TableCell>

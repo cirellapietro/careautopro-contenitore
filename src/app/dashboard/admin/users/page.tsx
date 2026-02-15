@@ -60,7 +60,7 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = () => {
     if (!userToDelete || !firestore) return;
-    const userRef = doc(firestore, 'users', userToDelete.id);
+    const userRef = doc(firestore, 'users', userToDelete.uid);
     const dataToUpdate = { dataoraelimina: new Date().toISOString() };
     updateDoc(userRef, dataToUpdate)
         .then(() => {
@@ -88,6 +88,8 @@ export default function AdminUsersPage() {
       </div>
     );
   }
+  
+  const visibleUsers = users?.filter(u => !u.dataoraelimina);
 
   return (
     <>
@@ -100,7 +102,7 @@ export default function AdminUsersPage() {
           <CardHeader>
             <CardTitle>Elenco Utenti</CardTitle>
             <CardDescription>
-              Clicca su un utente per modificarne i dettagli.
+              Clicca su un utente per modificarne i dettagli. Gli utenti eliminati non sono visibili in questa lista.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -119,11 +121,11 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users && users.map(user => (
+                  {visibleUsers && visibleUsers.map(user => (
                     <TableRow 
-                      key={user.id}
+                      key={user.uid}
                       className={cn("cursor-pointer", user.dataoraelimina && 'text-muted-foreground opacity-50')}
-                      onClick={() => router.push(`/dashboard/admin/users/${user.id}`)}
+                      onClick={() => !user.dataoraelimina && router.push(`/dashboard/admin/users/${user.uid}`)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -141,10 +143,10 @@ export default function AdminUsersPage() {
                         </Badge>
                       </TableCell>
                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/users/${user.id}`)}}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/users/${user.uid}`)}} disabled={!!user.dataoraelimina}>
                               <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setUserToDelete(user); }}>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setUserToDelete(user); }} disabled={!!user.dataoraelimina}>
                               <Trash2 className="h-4 w-4" />
                           </Button>
                       </TableCell>

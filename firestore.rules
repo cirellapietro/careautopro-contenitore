@@ -16,7 +16,7 @@ service cloud.firestore {
      * - User data is private to the owner, but administrators have universal read/write access for management purposes.
      * - Listing of top-level user documents (`/users`) is allowed only for administrators to prevent user enumeration by standard users.
      * - Public data collections are globally readable but are writeable only by administrators to protect shared application data.
-     * - Deleting a user's root document (`/users/{userId}`) is disallowed from the client-side to prevent accidental data destruction.
+     * - DELETES ARE DISALLOWED. All deletes are logical (soft deletes) via the `dataoraelimina` field.
      */
 
     // =====================================================================
@@ -52,153 +52,86 @@ service cloud.firestore {
     function isCreatingOwnUserDoc(userId) {
       return request.resource.data.id == userId;
     }
-
-    /**
-     * Validates that the ID of the user document is not being changed on update.
-     */
-    function isUserDocIdImmutable() {
-      return !('id' in request.resource.data) || request.resource.data.id == resource.data.id;
-    }
     
     /**
-     * Validates that a new document has a 'userId' field matching the owner's UID from the path.
+     * Validates that the 'dataoraelimina' field is a string if it exists.
+     * On update, it ensures the field cannot be removed.
      */
-    function newDocHasCorrectOwner(userId) {
-      return request.resource.data.userId == userId;
-    }
-
-    /**
-     * Validates that the 'userId' field on an existing document is not being changed.
-     */
-    function ownerIdIsImmutable() {
-      return request.resource.data.userId == resource.data.userId;
-    }
-
-    /**
-     * Validates that a new sub-document has a 'vehicleId' field matching the vehicle's ID from the path.
-     */
-    function newDocHasCorrectVehicleId(vehicleId) {
-        return request.resource.data.vehicleId == vehicleId;
-    }
-
-    /**
-     * Validates that the 'vehicleId' field on an existing sub-document is not being changed.
-     */
-    function vehicleIdIsImmutable() {
-        return request.resource.data.vehicleId == resource.data.vehicleId;
+    function isValidSoftDelete() {
+        // On create, field is optional or null.
+        if (request.method == 'create') {
+            return !('dataoraelimina' in request.resource.data) || request.resource.data.dataoraelimina == null;
+        }
+        // On update, you can add it, but not remove it if it exists.
+        if (request.method == 'update') {
+            // Cannot remove soft delete marker.
+            if ('dataoraelimina' in resource.data && resource.data.dataoraelimina != null) {
+                return 'dataoraelimina' in request.resource.data && request.resource.data.dataoraelimina != null;
+            }
+            return true; // Can add it freely.
+        }
+        return true;
     }
 
     // =====================================================================
     // User Data Rules
     // =====================================================================
 
-    /**
-     * @description Manages user profile documents. A user can read/update their own profile. Admins can read/update any profile. Only admins can list all users.
-     * @path /users/{userId}
-     * @allow (get) user 'user_abc' reading their own profile, or an admin reading any profile.
-     * @deny (list) a standard user trying to list all users.
-     * @principle Restricts access to a user's own data, with an admin override. Prevents user enumeration by non-admins.
-     */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId) && isCreatingOwnUserDoc(userId);
-      allow update: if (isOwner(userId) || isAdmin()) && resource != null && isUserDocIdImmutable();
-      allow delete: if false; // Prevent users from deleting their own accounts.
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
     }
 
-    /**
-     * @description Secures a user's vehicle documents. Owner or admin can perform all actions except create, which is owner-only.
-     * @path /users/{userId}/vehicles/{vehicleId}
-     * @allow (list) user 'user_abc' listing their own vehicles, or an admin listing any user's vehicles.
-     * @deny (create) an admin trying to create a vehicle for another user.
-     * @principle Enforces strict ownership for creation, with admin overrides for management.
-     */
     match /users/{userId}/vehicles/{vehicleId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && newDocHasCorrectOwner(userId);
-      allow update: if (isOwner(userId) || isAdmin()) && resource != null && ownerIdIsImmutable();
-      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
     }
     
-    /**
-     * @description Secures a user's alert documents. Owner or admin can manage alerts.
-     * @path /users/{userId}/alerts/{alertId}
-     * @allow (update) user 'user_abc' or an admin marking an alert as read.
-     * @deny (create) a standard user trying to create an alert for another user.
-     * @principle Enforces strict ownership for creation, with admin overrides for management.
-     */
     match /users/{userId}/alerts/{alertId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && newDocHasCorrectOwner(userId);
-      allow update: if (isOwner(userId) || isAdmin()) && resource != null && ownerIdIsImmutable();
-      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
     }
 
-    /**
-     * @description Secures all subcollections related to a specific vehicle (e.g., maintenance). Owner or admin can manage these documents.
-     * @path /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId}
-     * @allow (get) user 'user_abc' or an admin reading a maintenance intervention.
-     * @deny (create) an admin trying to create a maintenance record for another user's vehicle.
-     * @principle Leverages path-based security and RBAC to protect nested data.
-     */
     match /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && newDocHasCorrectVehicleId(vehicleId);
-      allow update: if (isOwner(userId) || isAdmin()) && resource != null && vehicleIdIsImmutable();
-      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
     }
 
     // =====================================================================
     // Public & Admin-Managed Data Rules
     // =====================================================================
 
-    /**
-     * @description Manages global, read-only application configuration. Writable only by admins.
-     * @path /config/{configId}
-     * @allow (get) any user reading the app config.
-     * @deny (write) any non-admin client.
-     * @principle Protects shared application settings by restricting writes to admins.
-     */
     match /config/{configId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
     }
 
-    /**
-     * @description Manages vehicle type definitions. Publicly readable, but writable only by admins.
-     * @path /vehicleTypes/{vehicleTypeId}
-     * @allow (get) any user reading a vehicle type.
-     * @deny (create, update, delete) any non-admin client.
-     * @principle Protects shared taxonomy data by restricting writes to admins.
-     */
     match /vehicleTypes/{vehicleTypeId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
     }
 
-    /**
-     * @description Manages standard maintenance checks for a vehicle type. Publicly readable, but writable only by admins.
-     * @path /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId}
-     * @allow (list) any user listing maintenance checks for a vehicle type.
-     * @deny (create, update, delete) any non-admin client.
-     * @principle Protects shared maintenance plan data by restricting writes to admins.
-     */
     match /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
     }
 
-    /**
-     * @description Manages application roles. Readable and Writable only by admins.
-     * @path /roles/{roleId}
-     * @allow (get) an admin reading role definitions.
-     * @deny (write) any non-admin client.
-     * @principle Protects role definitions by restricting all access to admins.
-     */
     match /roles/{roleId} {
       allow get, list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
     }
   }
 }

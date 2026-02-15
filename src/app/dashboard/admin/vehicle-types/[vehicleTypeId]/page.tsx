@@ -71,6 +71,8 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
             });
     };
 
+    const visibleChecks = checks?.filter(c => !c.dataoraelimina);
+
     return (
         <>
             <Card>
@@ -101,26 +103,26 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {checks && checks.map(check => (
+                                {visibleChecks && visibleChecks.map(check => (
                                     <TableRow 
                                         key={check.id}
                                         className={cn("cursor-pointer", check.dataoraelimina && 'text-muted-foreground opacity-50')}
-                                        onClick={() => router.push(`/dashboard/admin/vehicle-types/${vehicleTypeId}/maintenance-checks/${check.id}`)}
+                                        onClick={() => !check.dataoraelimina && router.push(`/dashboard/admin/vehicle-types/${vehicleTypeId}/maintenance-checks/${check.id}`)}
                                     >
                                         <TableCell className="font-medium">{check.description}</TableCell>
                                         <TableCell>{check.intervalMileage ? `${check.intervalMileage.toLocaleString('it-IT')} km` : 'N/A'}</TableCell>
                                         <TableCell>{check.intervalTime ? `${check.intervalTime} mesi` : 'N/A'}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/vehicle-types/${vehicleTypeId}/maintenance-checks/${check.id}`)}}>
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/vehicle-types/${vehicleTypeId}/maintenance-checks/${check.id}`)}} disabled={!!check.dataoraelimina}>
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setCheckToDelete(check); }}>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setCheckToDelete(check); }} disabled={!!check.dataoraelimina}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {checks?.length === 0 && (
+                                {visibleChecks?.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={4} className="text-center h-24">Nessun controllo standard trovato.</TableCell>
                                     </TableRow>

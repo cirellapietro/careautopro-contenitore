@@ -63,10 +63,10 @@ export default function DashboardLayout({
             </nav>
         </div>
       </div>
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+      <main className="flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         {children}
       </main>
-      <footer className="mt-auto border-t bg-background py-4">
+      <footer className="mt-auto border-t bg-secondary py-4">
         <div className="container flex items-center justify-end">
             <p className="text-xs text-muted-foreground">Versione: {version}</p>
         </div>

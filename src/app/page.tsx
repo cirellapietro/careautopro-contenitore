@@ -86,10 +86,10 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="bg-secondary py-6">
-        <div className="container mx-auto px-4 text-center text-muted-foreground">
+      <footer className="bg-background py-6">
+        <div className="container mx-auto flex items-center justify-between px-4 text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} CareAutoPro. Tutti i diritti riservati.</p>
-           <p className="text-xs text-muted-foreground mt-1">Versione: {version}</p>
+          <p>Versione: {version}</p>
         </div>
       </footer>
     </div>
