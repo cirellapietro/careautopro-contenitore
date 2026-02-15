@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth
 import { doc, getFirestore, onSnapshot } from 'firebase/firestore';
 import { FirebaseContext } from '../provider';
 import type { User } from '@/lib/types';
+import { FirestorePermissionError, errorEmitter } from '@/firebase';
 
 interface UseUserHook {
   user: User | null;
@@ -67,7 +68,12 @@ export function useUser(): UseUserHook {
           setUser(newUser);
           setLoading(false);
         }, (error) => {
-            console.error("Error fetching user document:", error);
+            const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'get',
+              requestResourceData: { context: `Listening to user document for auth state changes.` }
+            });
+            errorEmitter.emit('permission-error', permissionError);
             setUser(null);
             setLoading(false);
         });

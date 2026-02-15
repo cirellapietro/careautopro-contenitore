@@ -76,47 +76,68 @@ export const seedGlobalData = async (firestore: Firestore) => {
   const batch = writeBatch(firestore);
   let needsCommit = false;
 
-  // 1. Seed Roles
-  const rolesRef = collection(firestore, 'roles');
-  const rolesQuery = query(rolesRef, limit(1));
-  const rolesSnapshot = await getDocs(rolesQuery);
+  try {
+    // 1. Seed Roles
+    const rolesRef = collection(firestore, 'roles');
+    const rolesQuery = query(rolesRef, limit(1));
+    const rolesSnapshot = await getDocs(rolesQuery);
 
-  if (rolesSnapshot.empty) {
-    needsCommit = true;
-    roleData.forEach(role => {
-      const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
-      batch.set(roleRef, {
-        id: roleRef.id,
-        name: role.name,
-        description: role.description,
-      });
-    });
-  }
-
-  // 2. Seed Vehicle Types and Maintenance Checks
-  const vehicleTypesRef = collection(firestore, 'vehicleTypes');
-  const vtQuery = query(vehicleTypesRef, limit(1));
-  const vtSnapshot = await getDocs(vtQuery);
-
-  if (vtSnapshot.empty) {
-    needsCommit = true;
-    vehicleTypeData.forEach(vt => {
-      const vtRef = doc(firestore, 'vehicleTypes', vt.id);
-      batch.set(vtRef, vt);
-
-      const checks = maintenanceCheckData[vt.id];
-      if (checks) {
-        checks.forEach(check => {
-          const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
-          batch.set(checkRef, { 
-              ...check, 
-              id: checkRef.id,
-              vehicleTypeId: vt.id,
-          });
+    if (rolesSnapshot.empty) {
+      needsCommit = true;
+      roleData.forEach(role => {
+        const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
+        batch.set(roleRef, {
+          id: roleRef.id,
+          name: role.name,
+          description: role.description,
         });
-      }
+      });
+    }
+  } catch (error) {
+    const permissionError = new FirestorePermissionError({
+        path: 'roles',
+        operation: 'list',
+        requestResourceData: { context: 'Checking for existing roles during global seed.' }
     });
+    errorEmitter.emit('permission-error', permissionError);
+    return;
   }
+
+  try {
+    // 2. Seed Vehicle Types and Maintenance Checks
+    const vehicleTypesRef = collection(firestore, 'vehicleTypes');
+    const vtQuery = query(vehicleTypesRef, limit(1));
+    const vtSnapshot = await getDocs(vtQuery);
+
+    if (vtSnapshot.empty) {
+      needsCommit = true;
+      vehicleTypeData.forEach(vt => {
+        const vtRef = doc(firestore, 'vehicleTypes', vt.id);
+        batch.set(vtRef, vt);
+
+        const checks = maintenanceCheckData[vt.id];
+        if (checks) {
+          checks.forEach(check => {
+            const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
+            batch.set(checkRef, { 
+                ...check, 
+                id: checkRef.id,
+                vehicleTypeId: vt.id,
+            });
+          });
+        }
+      });
+    }
+  } catch (error) {
+     const permissionError = new FirestorePermissionError({
+        path: 'vehicleTypes',
+        operation: 'list',
+        requestResourceData: { context: 'Checking for existing vehicle types during global seed.' }
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    return;
+  }
+
 
   if (needsCommit) {
     batch.commit().catch(serverError => {
@@ -130,7 +151,6 @@ export const seedGlobalData = async (firestore: Firestore) => {
             },
         });
         errorEmitter.emit('permission-error', permissionError);
-        console.error("Permission error during global data seeding:", serverError);
     });
   }
 };
