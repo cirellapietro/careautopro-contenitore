@@ -1,7 +1,7 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, where } from 'firebase/firestore';
 import type { VehicleType } from '@/lib/types';
 import {
   Card,
@@ -45,7 +45,7 @@ export default function AdminVehicleTypesPage() {
 
   const vehicleTypesQuery = useMemo(() => {
     if (!firestore || currentUser?.role !== 'Amministratore') return null;
-    return collection(firestore, 'vehicleTypes');
+    return query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
   }, [firestore, currentUser]);
 
   const { data: vehicleTypes, isLoading: vehicleTypesLoading } = useCollection<VehicleType>(vehicleTypesQuery);
@@ -86,8 +86,6 @@ export default function AdminVehicleTypesPage() {
       </div>
     );
   }
-  
-  const visibleVehicleTypes = vehicleTypes?.filter(vt => !vt.dataoraelimina);
 
   return (
     <>
@@ -123,7 +121,7 @@ export default function AdminVehicleTypesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleVehicleTypes && visibleVehicleTypes.map(vt => (
+                  {vehicleTypes && vehicleTypes.map(vt => (
                     <TableRow 
                       key={vt.id}
                       className={cn("cursor-pointer", vt.dataoraelimina && 'text-muted-foreground opacity-50')}

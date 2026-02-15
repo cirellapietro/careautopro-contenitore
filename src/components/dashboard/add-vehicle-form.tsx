@@ -11,6 +11,8 @@ import {
   doc,
   getDocs,
   writeBatch,
+  query,
+  where
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -131,8 +133,8 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     const fetchVehicleTypes = async () => {
       setLoadingTypes(true);
       try {
-        const typesRef = collection(firestore, 'vehicleTypes');
-        const snapshot = await getDocs(typesRef);
+        const typesQuery = query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
+        const snapshot = await getDocs(typesQuery);
         const types = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as VehicleType)
         );

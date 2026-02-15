@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Image from 'next/image';
-import { doc, collection, updateDoc } from 'firebase/firestore';
+import { doc, collection, updateDoc, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 
 import type { MaintenanceIntervention, Vehicle } from '@/lib/types';
@@ -145,7 +145,7 @@ export default function VehicleDetailPage() {
 
   const interventionsQuery = useMemo(() => {
     if (!vehicleRef) return null;
-    return collection(vehicleRef, 'maintenanceInterventions');
+    return query(collection(vehicleRef, 'maintenanceInterventions'), where('dataoraelimina', '==', null));
   }, [vehicleRef]);
 
   const { data: vehicle, isLoading: vehicleLoading } = useDoc<Vehicle>(vehicleRef);

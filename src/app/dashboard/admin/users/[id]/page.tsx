@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { doc, updateDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where } from 'firebase/firestore';
 import { notFound, useRouter } from 'next/navigation';
 
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
 
     const rolesQuery = useMemo(() => {
         if (!firestore) return null;
-        return collection(firestore, 'roles');
+        return query(collection(firestore, 'roles'), where('dataoraelimina', '==', null));
     }, [firestore]);
 
     const { data: userToEdit, isLoading: isUserToEditLoading } = useDoc<User>(userRef);
@@ -158,7 +158,7 @@ export default function AdminUserEditPage({ params }: { params: { id: string } }
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {roles && roles.filter(r => !r.dataoraelimina).map(role => (
+                                                {roles && roles.map(role => (
                                                     <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>
                                                 ))}
                                             </SelectContent>

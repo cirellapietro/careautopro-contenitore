@@ -1,7 +1,7 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, where } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import {
   Card,
@@ -47,7 +47,7 @@ export default function AdminUsersPage() {
 
   const usersQuery = useMemo(() => {
     if (!firestore || currentUser?.role !== 'Amministratore') return null;
-    return collection(firestore, 'users');
+    return query(collection(firestore, 'users'), where('dataoraelimina', '==', null));
   }, [firestore, currentUser]);
 
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);
@@ -89,8 +89,6 @@ export default function AdminUsersPage() {
     );
   }
   
-  const visibleUsers = users?.filter(u => !u.dataoraelimina);
-
   return (
     <>
       <div className="space-y-6">
@@ -121,7 +119,7 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleUsers && visibleUsers.map(user => (
+                  {users && users.map(user => (
                     <TableRow 
                       key={user.uid}
                       className={cn("cursor-pointer", user.dataoraelimina && 'text-muted-foreground opacity-50')}

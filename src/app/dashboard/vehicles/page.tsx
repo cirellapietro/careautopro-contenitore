@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, getDocs, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, writeBatch, setDoc, updateDoc, query, where } from 'firebase/firestore';
 import type { Vehicle, DailyStat } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AddVehicleForm } from '@/components/dashboard/add-vehicle-form';
@@ -51,7 +51,7 @@ export default function VehiclesPage() {
 
     const vehiclesQuery = useMemo(() => {
         if (!user || !firestore) return null;
-        return collection(firestore, `users/${user.uid}/vehicles`);
+        return query(collection(firestore, `users/${user.uid}/vehicles`), where('dataoraelimina', '==', null));
     }, [user, firestore]);
 
     const { data: userVehicles, isLoading: vehiclesLoading } = useCollection<Vehicle>(vehiclesQuery);
@@ -216,9 +216,7 @@ export default function VehiclesPage() {
             }
         }
         
-        const visibleUserVehicles = userVehicles?.filter(v => !v.dataoraelimina);
-        
-        if (!visibleUserVehicles) {
+        if (!userVehicles) {
             setVehiclesWithStats([]);
             return;
         }
@@ -227,7 +225,7 @@ export default function VehiclesPage() {
             if (!firestore || !user) return;
             try {
                 const processedVehicles: VehicleWithStats[] = await Promise.all(
-                    visibleUserVehicles.map(async (vehicle) => {
+                    userVehicles.map(async (vehicle) => {
                         const statsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
                         const statsSnap = await getDocs(statsRef);
                         const dailyStats = statsSnap.docs.map(doc => doc.data() as DailyStat);
@@ -269,7 +267,7 @@ export default function VehiclesPage() {
             }
         };
     
-        if (visibleUserVehicles.length > 0) {
+        if (userVehicles.length > 0) {
             fetchStats();
         } else {
             setVehiclesWithStats([]);
@@ -443,3 +441,4 @@ export default function VehiclesPage() {
     );
 
     
+

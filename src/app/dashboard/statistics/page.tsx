@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import type { DailyStat, DrivingSession, MaintenanceIntervention, Vehicle } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
@@ -37,8 +37,8 @@ export default function StatisticsPage() {
 
             try {
                 // Fetch all vehicles for the dropdown first, and to know which ones to process
-                const vehiclesRef = collection(firestore, `users/${user.uid}/vehicles`);
-                const vehiclesSnap = await getDocs(vehiclesRef);
+                const vehiclesQuery = query(collection(firestore, `users/${user.uid}/vehicles`), where('dataoraelimina', '==', null));
+                const vehiclesSnap = await getDocs(vehiclesQuery);
                 const allUserVehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Vehicle[]);
                 setVehicles(allUserVehicles);
                 
@@ -55,20 +55,20 @@ export default function StatisticsPage() {
                 let allDrivingSessions: DrivingSession[] = [];
 
                 for (const vehicle of vehiclesToProcess) {
-                    const dailyStatsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`);
-                    const dailyStatsSnap = await getDocs(dailyStatsRef);
+                    const dailyStatsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`), where('dataoraelimina', '==', null));
+                    const dailyStatsSnap = await getDocs(dailyStatsQuery);
                     dailyStatsSnap.forEach(doc => {
                         allDailyStats.push(doc.data() as DailyStat);
                     });
 
-                    const interventionsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/maintenanceInterventions`);
-                    const interventionsSnap = await getDocs(interventionsRef);
+                    const interventionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/maintenanceInterventions`), where('dataoraelimina', '==', null));
+                    const interventionsSnap = await getDocs(interventionsQuery);
                     interventionsSnap.forEach(doc => {
                         allInterventions.push({ id: doc.id, ...doc.data() } as MaintenanceIntervention);
                     });
 
-                    const sessionsRef = collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/trackingSessions`);
-                    const sessionsSnap = await getDocs(sessionsRef);
+                    const sessionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/trackingSessions`), where('dataoraelimina', '==', null));
+                    const sessionsSnap = await getDocs(sessionsQuery);
                     sessionsSnap.forEach(doc => {
                         allDrivingSessions.push({ id: doc.id, ...doc.data() } as DrivingSession);
                     });

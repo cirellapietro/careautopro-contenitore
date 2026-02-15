@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { doc, updateDoc, setDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, collection, query, where } from 'firebase/firestore';
 import { notFound, useRouter } from 'next/navigation';
 
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
 
     const checksQuery = useMemo(() => {
         if (!firestore) return null;
-        return collection(firestore, 'vehicleTypes', vehicleTypeId, 'maintenanceChecks');
+        return query(collection(firestore, 'vehicleTypes', vehicleTypeId, 'maintenanceChecks'), where('dataoraelimina', '==', null));
     }, [firestore, vehicleTypeId]);
 
     const { data: checks, isLoading } = useCollection<MaintenanceCheck>(checksQuery);
@@ -70,8 +70,6 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
                 setCheckToDelete(null);
             });
     };
-
-    const visibleChecks = checks?.filter(c => !c.dataoraelimina);
 
     return (
         <>
@@ -103,7 +101,7 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {visibleChecks && visibleChecks.map(check => (
+                                {checks && checks.map(check => (
                                     <TableRow 
                                         key={check.id}
                                         className={cn("cursor-pointer", check.dataoraelimina && 'text-muted-foreground opacity-50')}
@@ -122,7 +120,7 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {visibleChecks?.length === 0 && (
+                                {checks?.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={4} className="text-center h-24">Nessun controllo standard trovato.</TableCell>
                                     </TableRow>

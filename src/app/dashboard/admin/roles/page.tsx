@@ -1,7 +1,7 @@
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, where } from 'firebase/firestore';
 import type { Role } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,7 +23,7 @@ export default function AdminRolesPage() {
 
   const rolesQuery = useMemo(() => {
     if (!firestore || currentUser?.role !== 'Amministratore') return null;
-    return collection(firestore, 'roles');
+    return query(collection(firestore, 'roles'), where('dataoraelimina', '==', null));
   }, [firestore, currentUser]);
 
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesQuery);
@@ -66,8 +66,6 @@ export default function AdminRolesPage() {
     );
   }
 
-  const visibleRoles = roles?.filter(r => !r.dataoraelimina);
-
   return (
     <>
       <div className="space-y-6">
@@ -102,7 +100,7 @@ export default function AdminRolesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleRoles && visibleRoles.map(role => (
+                  {roles && roles.map(role => (
                     <TableRow 
                       key={role.id}
                       className={cn("cursor-pointer", role.dataoraelimina && 'text-muted-foreground opacity-50')}
