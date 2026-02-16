@@ -99,7 +99,6 @@ export const seedGlobalData = async (firestore: Firestore) => {
         // We can log it for debugging but shouldn't crash the app.
         console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
     } else {
-        // For other unexpected errors, we still want to surface them for debugging.
         const permissionError = new FirestorePermissionError({
             path: 'roles',
             operation: 'list',
@@ -134,14 +133,14 @@ export const seedGlobalData = async (firestore: Firestore) => {
         }
       });
     }
-  } catch (error) {
-     const permissionError = new FirestorePermissionError({
-        path: 'vehicleTypes',
-        operation: 'list',
-        requestResourceData: { context: 'Checking for existing vehicle types during global seed.' }
-    });
-    errorEmitter.emit('permission-error', permissionError);
-    return;
+  } catch (error: any) {
+    if (error?.code === 'permission-denied') {
+        // This is not expected since reads should be public, but we handle it.
+        console.info('Skipping vehicle type seed check due to permissions.');
+    } else {
+       // Log other errors (like network issues) but don't crash.
+       console.error('Error checking vehicle types during seed:', error);
+    }
   }
 
 
