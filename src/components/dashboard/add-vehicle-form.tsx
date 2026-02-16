@@ -327,12 +327,12 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nome veicolo</FormLabel>
+                        <FormLabel>Marca e modello veicolo</FormLabel>
                         <FormControl>
                           <Input placeholder="Es. Fiat Panda (Lavoro)" {...field} />
                         </FormControl>
                         <FormDescription>
-                          Inserisci marca, modello e un nome per identificare il veicolo.
+                          Puoi anche aggiungere un nome per identificare il veicolo, es. (Lavoro).
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

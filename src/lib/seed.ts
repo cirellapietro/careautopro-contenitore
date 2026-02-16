@@ -96,15 +96,19 @@ export const seedGlobalData = async (firestore: Firestore) => {
   } catch (error: any) {
     if (error?.code === 'permission-denied') {
         // This is an expected error for non-admin/unauthenticated users.
-        // We can log it for debugging but shouldn't crash the app.
         console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
     } else {
-        const permissionError = new FirestorePermissionError({
-            path: 'roles',
-            operation: 'list',
-            requestResourceData: { context: 'Checking for existing roles during global seed.' }
+        // If reading fails for other reasons (e.g. network), assume it needs seeding.
+        console.warn('Could not check for existing roles, attempting to seed them.', error);
+        needsCommit = true;
+        roleData.forEach(role => {
+            const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
+            batch.set(roleRef, {
+                id: roleRef.id,
+                name: role.name,
+                description: role.description,
+            });
         });
-        errorEmitter.emit('permission-error', permissionError);
     }
   }
 
@@ -134,13 +138,27 @@ export const seedGlobalData = async (firestore: Firestore) => {
       });
     }
   } catch (error: any) {
-    if (error?.code === 'permission-denied') {
-        // This is not expected since reads should be public, but we handle it.
-        console.info('Skipping vehicle type seed check due to permissions.');
-    } else {
-       // Log other errors (like network issues) but don't crash.
-       console.error('Error checking vehicle types during seed:', error);
-    }
+    // If reading the collection fails (e.g. it doesn't exist yet, or network issue),
+    // we'll assume it needs to be seeded. The subsequent write will either succeed (for an admin)
+    // or fail gracefully with a permission error (for a regular user).
+    console.warn('Could not check for existing vehicle types, attempting to seed them. This may be normal on first run.', error);
+    needsCommit = true;
+    vehicleTypeData.forEach(vt => {
+      const vtRef = doc(firestore, 'vehicleTypes', vt.id);
+      batch.set(vtRef, vt);
+
+      const checks = maintenanceCheckData[vt.id];
+      if (checks) {
+        checks.forEach(check => {
+          const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
+          batch.set(checkRef, { 
+              ...check, 
+              id: checkRef.id,
+              vehicleTypeId: vt.id,
+          });
+        });
+      }
+    });
   }
 
 
