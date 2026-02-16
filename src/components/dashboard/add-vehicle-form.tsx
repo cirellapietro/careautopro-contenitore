@@ -45,6 +45,7 @@ import { Loader2 } from 'lucide-react';
 import type { VehicleType, MaintenanceCheck } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { fetchMaintenancePlan } from '@/ai/flows/fetch-maintenance-plan';
+import { Checkbox } from '../ui/checkbox';
 
 
 const addVehicleSchema = z.object({
@@ -58,6 +59,7 @@ const addVehicleSchema = z.object({
     .max(10, { message: 'Targa non valida.' }),
   vehicleTypeId: z.string({ required_error: 'Seleziona un tipo.' }),
   currentMileage: z.coerce.number().optional(),
+  isTaxi: z.boolean().default(false),
 });
 
 type AddVehicleFormValues = z.infer<typeof addVehicleSchema>;
@@ -89,6 +91,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       licensePlate: '',
       registrationDate: '',
       currentMileage: undefined,
+      isTaxi: false,
     },
   });
 
@@ -101,6 +104,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         registrationDate: '',
         vehicleTypeId: undefined,
         currentMileage: undefined,
+        isTaxi: false,
       });
       setYear('');
       setMonth('');
@@ -348,6 +352,29 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                     )}
                   />
                   
+                  <FormField
+                    control={form.control}
+                    name="isTaxi"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            È un taxi?
+                          </FormLabel>
+                          <FormDescription>
+                            Seleziona se il veicolo è utilizzato per servizio taxi.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="registrationDate"

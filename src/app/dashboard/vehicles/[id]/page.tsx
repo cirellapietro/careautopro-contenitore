@@ -126,6 +126,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
                     <div><span className="text-muted-foreground">Chilometraggio:</span> {vehicle.currentMileage.toLocaleString('it-IT')} km</div>
                     {vehicle.vin && <div><span className="text-muted-foreground">VIN:</span> {vehicle.vin}</div>}
                     <div><span className="text-muted-foreground">Ultima Manutenzione:</span> {new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')}</div>
+                    {vehicle.isTaxi && <div className="col-span-2 flex items-center gap-2"><span className="text-muted-foreground">Uso:</span><Badge variant="secondary">Taxi</Badge></div>}
                 </div>
             </CardContent>
         </Card>

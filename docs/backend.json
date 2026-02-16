@@ -99,6 +99,10 @@
           "type": "string",
           "description": "Reference to VehicleType. (Relationship: VehicleType 1:N Vehicle)"
         },
+        "isTaxi": {
+          "type": "boolean",
+          "description": "Indicates if the vehicle is used as a taxi."
+        },
         "dataoraelimina": {
           "type": "string",
           "description": "Timestamp of logical deletion.",

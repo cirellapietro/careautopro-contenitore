@@ -51,6 +51,7 @@ export type Vehicle = {
   lastMaintenanceDate: string;
   createdAt?: string;
   dataoraelimina?: string;
+  isTaxi?: boolean;
 };
 
 export type MaintenanceIntervention = {
