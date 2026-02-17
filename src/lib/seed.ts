@@ -98,17 +98,7 @@ export const seedGlobalData = async (firestore: Firestore) => {
     if (error?.code === 'permission-denied') {
         console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
     } else {
-        console.warn('Could not check for existing roles, attempting to seed them.', error);
-        needsCommit = true;
-        roleData.forEach(role => {
-            const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
-            batch.set(roleRef, {
-                id: roleRef.id,
-                name: role.name,
-                description: role.description,
-                dataoraelimina: null,
-            });
-        });
+        console.error('Error checking for roles during seed:', error);
     }
   }
 
@@ -139,44 +129,33 @@ export const seedGlobalData = async (firestore: Firestore) => {
       });
     }
   } catch (error: any) {
-    if (error?.code === 'permission-denied') {
-        console.info('Skipping vehicle type seed check: Insufficient permissions. This is expected for non-admin users.');
+     if (error?.code === 'permission-denied') {
+        console.info('Skipping vehicle type seed check: Insufficient permissions.');
     } else {
-        console.warn('Could not check for existing vehicle types, attempting to seed them. This may be normal on first run.', error);
-        needsCommit = true;
-        vehicleTypeData.forEach(vt => {
-          const vtRef = doc(firestore, 'vehicleTypes', vt.id);
-          batch.set(vtRef, { ...vt, dataoraelimina: null });
-    
-          const checks = maintenanceCheckData[vt.id];
-          if (checks) {
-            checks.forEach(check => {
-              const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
-              batch.set(checkRef, { 
-                  ...check, 
-                  id: checkRef.id,
-                  vehicleTypeId: vt.id,
-                  dataoraelimina: null,
-              });
-            });
-          }
-        });
+        console.error('Error checking for vehicle types during seed:', error);
     }
   }
 
 
   if (needsCommit) {
     batch.commit().catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-            path: '/ (global data seed)',
-            operation: 'write',
-            requestResourceData: {
-                message: 'Attempted to seed global collections like /roles and /vehicleTypes. This operation requires administrator privileges.',
-                roleCount: roleData.length,
-                vehicleTypeCount: vehicleTypeData.length,
-            },
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        // If it's a permission error, it's likely a non-admin user trying to run the seed.
+        // This is expected, so we log it as info and don't crash the app.
+        if (serverError.code === 'permission-denied') {
+            console.info('Global data seeding skipped: insufficient permissions. This is expected for non-admin users.');
+        } else {
+            // For other errors, we still want to see the detailed report.
+            const permissionError = new FirestorePermissionError({
+                path: '/ (global data seed)',
+                operation: 'write',
+                requestResourceData: {
+                    message: 'Attempted to seed global collections like /roles and /vehicleTypes. This operation requires administrator privileges.',
+                    roleCount: roleData.length,
+                    vehicleTypeCount: vehicleTypeData.length,
+                },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
     });
   }
 };
