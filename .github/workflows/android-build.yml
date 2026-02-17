@@ -8,10 +8,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
       - name: Build Next.js
-        run: npm run build
+        run: npx next build
       - name: Build Android APK
         run: |
           npx cap add android || true
