@@ -73,7 +73,7 @@ export default function AdminCheckEditPage({ params }: { params: PageParams }) {
         const dataToSave = {
             ...data,
             vehicleTypeId: params.vehicleTypeId,
-            ...(isNew && { id: checkRef.id }),
+            ...(isNew && { id: checkRef.id, dataoraelimina: null }),
         };
 
         const operationType = isNew ? 'create' : 'update';

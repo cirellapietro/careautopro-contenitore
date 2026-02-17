@@ -186,7 +186,7 @@ export default function AdminVehicleTypeEditPage({ params }: { params: { vehicle
         if (!vtRef) return;
         
         const operationType = isNew ? 'create' : 'update';
-        const dataToSave = isNew ? { ...data, id: vtRef.id } : data;
+        const dataToSave = isNew ? { ...data, id: vtRef.id, dataoraelimina: null } : data;
         const operation = isNew ? setDoc(vtRef, dataToSave) : updateDoc(vtRef, dataToSave);
 
         operation.then(() => {

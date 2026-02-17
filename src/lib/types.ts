@@ -8,21 +8,21 @@ export type User = {
   role: string;
   notificationChannels?: NotificationChannel[];
   notificationReminderTime?: number; // in days
-  dataoraelimina?: string;
+  dataoraelimina?: string | null;
 };
 
 export type Role = {
   id: string;
   name: string;
   description?: string;
-  dataoraelimina?: string;
+  dataoraelimina?: string | null;
 };
 
 export type VehicleType = {
     id: string;
     name: 'Benzina' | 'Diesel' | 'Elettrica' | 'Ibrida';
     averageAnnualMileage: number;
-    dataoraelimina?: string;
+    dataoraelimina?: string | null;
 }
 
 export type MaintenanceCheck = {
@@ -31,7 +31,7 @@ export type MaintenanceCheck = {
     description: string;
     intervalMileage?: number;
     intervalTime?: number; // in months
-    dataoraelimina?: string;
+    dataoraelimina?: string | null;
 }
 
 export type Vehicle = {
@@ -50,7 +50,7 @@ export type Vehicle = {
   currentMileage: number;
   lastMaintenanceDate: string;
   createdAt?: string;
-  dataoraelimina?: string;
+  dataoraelimina?: string | null;
   isTaxi?: boolean;
 };
 
@@ -64,7 +64,7 @@ export type MaintenanceIntervention = {
   cost?: number;
   notes?: string;
   urgency: 'Alta' | 'Media' | 'Bassa';
-  dataoraelimina?: string;
+  dataoraelimina?: string | null;
 };
 
 export type DrivingSession = {
@@ -74,7 +74,7 @@ export type DrivingSession = {
   endTime?: string;
   distance: number;
   duration: number; // in minutes
-  dataoraelimina?: string;
+  dataoraelimina?: string | null;
 };
 
 export type DailyStat = {
@@ -82,5 +82,5 @@ export type DailyStat = {
   date: string;
   distance: number;
   duration: number; // in minutes
-  dataoraelimina?: string;
+  dataoraelimina?: string | null;
 };

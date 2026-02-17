@@ -47,6 +47,7 @@ async function createUserDocument(uid: string, email: string | null, displayName
     role: userRole,
     notificationChannels: ['app', 'email'],
     notificationReminderTime: 3, // days
+    dataoraelimina: null,
   };
   
   setDoc(userRef, userData, { merge: true }).catch(serverError => {

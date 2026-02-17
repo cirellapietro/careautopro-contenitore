@@ -73,7 +73,7 @@ export default function AdminRoleEditPage({ params }: { params: { id: string } }
         const ref = isNew ? doc(collection(firestore, 'roles')) : roleRef;
         if (!ref) return;
         
-        const dataToSave = isNew ? { ...data, id: ref.id } : data;
+        const dataToSave = isNew ? { ...data, id: ref.id, dataoraelimina: null } : data;
         const operation = isNew ? setDoc(ref, dataToSave) : updateDoc(ref, dataToSave);
         const operationType = isNew ? 'create' : 'update';
     

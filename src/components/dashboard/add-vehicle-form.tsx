@@ -11,7 +11,8 @@ import {
   doc,
   writeBatch,
   query,
-  where
+  where,
+  getDocs,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -177,6 +178,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
           currentMileage: mileage,
           lastMaintenanceDate: new Date().toISOString().split('T')[0],
           createdAt: new Date().toISOString(),
+          dataoraelimina: null,
         };
         firstBatch.set(newVehicleRef, newVehicleData);
 
@@ -195,6 +197,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                 urgency: 'Media',
                 notes: `Intervento generato automaticamente. Aggiornare con la data dell'ultimo intervento eseguito.`,
                 scheduledDate: new Date().toISOString(),
+                dataoraelimina: null,
             });
         }
 
@@ -223,6 +226,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         status: 'Pianificato',
                         urgency: 'Media',
                         notes: `Suggerito dall'AI per ${make} ${model}. Verifica la corrispondenza con il libretto di manutenzione.`,
+                        dataoraelimina: null,
                     });
                 }
                 await aiBatch.commit();

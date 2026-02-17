@@ -15,26 +15,26 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 // Data for global collections
-const vehicleTypeData: VehicleType[] = [
+const vehicleTypeData: Omit<VehicleType, 'dataoraelimina'>[] = [
   { id: 'benzina', name: 'Benzina', averageAnnualMileage: 15000 },
   { id: 'diesel', name: 'Diesel', averageAnnualMileage: 20000 },
   { id: 'ibrida', name: 'Ibrida', averageAnnualMileage: 12000 },
   { id: 'elettrica', name: 'Elettrica', averageAnnualMileage: 10000 },
 ];
 
-const roleData: Omit<Role, 'id'>[] = [
+const roleData: Omit<Role, 'id' | 'dataoraelimina'>[] = [
   { name: 'Amministratore', description: 'Accesso completo a tutte le funzionalità di amministrazione.' },
   { name: 'Utente', description: 'Accesso standard alle funzionalità dell\'applicazione.' },
 ];
 
 // Common checks for all vehicle types
-const commonChecks: Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[] = [
+const commonChecks: Omit<MaintenanceCheck, 'id' | 'vehicleTypeId' | 'dataoraelimina'>[] = [
     { description: 'Revisione ministeriale', intervalTime: 24 },
     { description: 'Pagamento assicurazione annuale', intervalTime: 12 },
     { description: 'Scadenza patente di guida', intervalTime: 120 },
 ];
 
-const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicleTypeId'>[]> = {
+const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicleTypeId' | 'dataoraelimina'>[]> = {
   benzina: [
     { description: 'Cambio olio e filtro olio', intervalMileage: 15000, intervalTime: 12 },
     { description: 'Controllo e sostituzione filtro aria', intervalMileage: 30000, intervalTime: 24 },
@@ -90,15 +90,14 @@ export const seedGlobalData = async (firestore: Firestore) => {
           id: roleRef.id,
           name: role.name,
           description: role.description,
+          dataoraelimina: null,
         });
       });
     }
   } catch (error: any) {
     if (error?.code === 'permission-denied') {
-        // This is an expected error for non-admin/unauthenticated users.
         console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
     } else {
-        // If reading fails for other reasons (e.g. network), assume it needs seeding.
         console.warn('Could not check for existing roles, attempting to seed them.', error);
         needsCommit = true;
         roleData.forEach(role => {
@@ -107,6 +106,7 @@ export const seedGlobalData = async (firestore: Firestore) => {
                 id: roleRef.id,
                 name: role.name,
                 description: role.description,
+                dataoraelimina: null,
             });
         });
     }
@@ -122,7 +122,7 @@ export const seedGlobalData = async (firestore: Firestore) => {
       needsCommit = true;
       vehicleTypeData.forEach(vt => {
         const vtRef = doc(firestore, 'vehicleTypes', vt.id);
-        batch.set(vtRef, vt);
+        batch.set(vtRef, { ...vt, dataoraelimina: null });
 
         const checks = maintenanceCheckData[vt.id];
         if (checks) {
@@ -132,33 +132,36 @@ export const seedGlobalData = async (firestore: Firestore) => {
                 ...check, 
                 id: checkRef.id,
                 vehicleTypeId: vt.id,
+                dataoraelimina: null,
             });
           });
         }
       });
     }
   } catch (error: any) {
-    // If reading the collection fails (e.g. it doesn't exist yet, or network issue),
-    // we'll assume it needs to be seeded. The subsequent write will either succeed (for an admin)
-    // or fail gracefully with a permission error (for a regular user).
-    console.warn('Could not check for existing vehicle types, attempting to seed them. This may be normal on first run.', error);
-    needsCommit = true;
-    vehicleTypeData.forEach(vt => {
-      const vtRef = doc(firestore, 'vehicleTypes', vt.id);
-      batch.set(vtRef, vt);
-
-      const checks = maintenanceCheckData[vt.id];
-      if (checks) {
-        checks.forEach(check => {
-          const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
-          batch.set(checkRef, { 
-              ...check, 
-              id: checkRef.id,
-              vehicleTypeId: vt.id,
-          });
+    if (error?.code === 'permission-denied') {
+        console.info('Skipping vehicle type seed check: Insufficient permissions. This is expected for non-admin users.');
+    } else {
+        console.warn('Could not check for existing vehicle types, attempting to seed them. This may be normal on first run.', error);
+        needsCommit = true;
+        vehicleTypeData.forEach(vt => {
+          const vtRef = doc(firestore, 'vehicleTypes', vt.id);
+          batch.set(vtRef, { ...vt, dataoraelimina: null });
+    
+          const checks = maintenanceCheckData[vt.id];
+          if (checks) {
+            checks.forEach(check => {
+              const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
+              batch.set(checkRef, { 
+                  ...check, 
+                  id: checkRef.id,
+                  vehicleTypeId: vt.id,
+                  dataoraelimina: null,
+              });
+            });
+          }
         });
-      }
-    });
+    }
   }
 
 
@@ -195,6 +198,7 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
       ...vehicle,
       id: newVehicleRef.id,
       userId: userId,
+      dataoraelimina: null,
     });
   });
 
@@ -211,6 +215,7 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
         ...intervention,
         id: newInterventionRef.id,
         vehicleId: newVehicleId,
+        dataoraelimina: null,
       });
     }
   });
@@ -235,6 +240,7 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
             date: statDate,
             distance: Math.floor(Math.random() * (100 - 5 + 1) + 5),
             duration: Math.floor(Math.random() * (120 - 10 + 1) + 10),
+            dataoraelimina: null,
         });
     }
 
@@ -251,6 +257,7 @@ export const seedDatabase = async (firestore: Firestore, userId: string) => {
           ...session,
           id: newSessionRef.id,
           vehicleId: newVehicleId,
+          dataoraelimina: null,
         });
       });
   }
