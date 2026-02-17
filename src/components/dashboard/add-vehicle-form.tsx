@@ -399,11 +399,17 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          disabled={loadingTypes}
+                          disabled={loadingTypes || !vehicleTypes || vehicleTypes.length === 0}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder={loadingTypes ? "Caricamento..." : "Seleziona un tipo"} />
+                              <SelectValue placeholder={
+                                loadingTypes 
+                                ? "Caricamento tipi..." 
+                                : (!vehicleTypes || vehicleTypes.length === 0)
+                                    ? "Nessun tipo trovato"
+                                    : "Seleziona un tipo"
+                                } />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>

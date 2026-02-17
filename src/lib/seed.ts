@@ -71,93 +71,88 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
 /**
  * Seeds the global, public collections like roles, vehicleTypes and their maintenanceChecks.
  * It checks if the data already exists to avoid overwriting.
+ * This function is designed to be safe to run for any user; it will only write data
+ * if the user has administrative permissions, and will fail silently otherwise.
  */
 export const seedGlobalData = async (firestore: Firestore) => {
-  const batch = writeBatch(firestore);
-  let needsCommit = false;
+    const batch = writeBatch(firestore);
+    let needsCommit = false;
 
-  try {
-    // 1. Seed Roles
-    const rolesRef = collection(firestore, 'roles');
-    const rolesQuery = query(rolesRef, limit(1));
-    const rolesSnapshot = await getDocs(rolesQuery);
-
-    if (rolesSnapshot.empty) {
-      needsCommit = true;
-      roleData.forEach(role => {
-        const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
-        batch.set(roleRef, {
-          id: roleRef.id,
-          name: role.name,
-          description: role.description,
-          dataoraelimina: null,
-        });
-      });
-    }
-  } catch (error: any) {
-    if (error?.code === 'permission-denied') {
-        console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
-    } else {
-        console.error('Error checking for roles during seed:', error);
-    }
-  }
-
-  try {
-    // 2. Seed Vehicle Types and Maintenance Checks
-    const vehicleTypesRef = collection(firestore, 'vehicleTypes');
-    const vtQuery = query(vehicleTypesRef, limit(1));
-    const vtSnapshot = await getDocs(vtQuery);
-
-    if (vtSnapshot.empty) {
-      needsCommit = true;
-      vehicleTypeData.forEach(vt => {
-        const vtRef = doc(firestore, 'vehicleTypes', vt.id);
-        batch.set(vtRef, { ...vt, dataoraelimina: null });
-
-        const checks = maintenanceCheckData[vt.id];
-        if (checks) {
-          checks.forEach(check => {
-            const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
-            batch.set(checkRef, { 
-                ...check, 
-                id: checkRef.id,
-                vehicleTypeId: vt.id,
-                dataoraelimina: null,
+    // --- Seed Roles ---
+    try {
+        const rolesRef = collection(firestore, 'roles');
+        const rolesQuery = query(rolesRef, limit(1));
+        const rolesSnapshot = await getDocs(rolesQuery);
+        if (rolesSnapshot.empty) {
+            console.log('Roles collection is empty. Attempting to seed...');
+            needsCommit = true;
+            roleData.forEach(role => {
+                const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
+                batch.set(roleRef, {
+                    id: roleRef.id,
+                    name: role.name,
+                    description: role.description,
+                    dataoraelimina: null,
+                });
             });
-          });
         }
-      });
-    }
-  } catch (error: any) {
-     if (error?.code === 'permission-denied') {
-        console.info('Skipping vehicle type seed check: Insufficient permissions.');
-    } else {
-        console.error('Error checking for vehicle types during seed:', error);
-    }
-  }
-
-
-  if (needsCommit) {
-    batch.commit().catch(serverError => {
-        // If it's a permission error, it's likely a non-admin user trying to run the seed.
-        // This is expected, so we log it as info and don't crash the app.
-        if (serverError.code === 'permission-denied') {
-            console.info('Global data seeding skipped: insufficient permissions. This is expected for non-admin users.');
+    } catch (error: any) {
+        if (error?.code === 'permission-denied') {
+            console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
         } else {
-            // For other errors, we still want to see the detailed report.
-            const permissionError = new FirestorePermissionError({
-                path: '/ (global data seed)',
-                operation: 'write',
-                requestResourceData: {
-                    message: 'Attempted to seed global collections like /roles and /vehicleTypes. This operation requires administrator privileges.',
-                    roleCount: roleData.length,
-                    vehicleTypeCount: vehicleTypeData.length,
-                },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            console.error('An unexpected error occurred while checking roles during seed:', error);
         }
-    });
-  }
+    }
+
+    // --- Seed Vehicle Types and Maintenance Checks ---
+    try {
+        const vehicleTypesRef = collection(firestore, 'vehicleTypes');
+        const vtQuery = query(vehicleTypesRef, limit(1));
+        const vtSnapshot = await getDocs(vtQuery);
+        if (vtSnapshot.empty) {
+            console.log('VehicleTypes collection is empty. Attempting to seed...');
+            needsCommit = true;
+            vehicleTypeData.forEach(vt => {
+                const vtRef = doc(firestore, 'vehicleTypes', vt.id);
+                batch.set(vtRef, { ...vt, dataoraelimina: null });
+
+                const checks = maintenanceCheckData[vt.id];
+                if (checks) {
+                    checks.forEach(check => {
+                        const checkRef = doc(collection(vtRef, 'maintenanceChecks'));
+                        batch.set(checkRef, {
+                            ...check,
+                            id: checkRef.id,
+                            vehicleTypeId: vt.id,
+                            dataoraelimina: null,
+                        });
+                    });
+                }
+            });
+        }
+    } catch (error: any) {
+        if (error?.code === 'permission-denied') {
+            console.info('Skipping vehicle type seed check: Insufficient permissions. This is expected for non-admin users.');
+        } else {
+            console.error('An unexpected error occurred while checking vehicle types during seed:', error);
+        }
+    }
+
+    // --- Commit Batch if Needed ---
+    if (needsCommit) {
+        try {
+            await batch.commit();
+            console.log('Global data seeding committed successfully.');
+        } catch (serverError: any) {
+            if (serverError.code === 'permission-denied') {
+                console.info('Global data seeding commit failed: Insufficient permissions. This is expected for non-admin users.');
+            } else {
+                console.error('An unexpected error occurred during the global data seed commit:', serverError);
+            }
+        }
+    } else {
+        console.log('Global data already exists. No seeding needed.');
+    }
 };
 
 
