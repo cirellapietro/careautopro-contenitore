@@ -9,7 +9,7 @@ import {
   query,
   limit,
 } from 'firebase/firestore';
-import type { MaintenanceCheck, VehicleType, Role } from './types';
+import type { MaintenanceCheck, VehicleType } from './types';
 
 // Data for global collections
 const vehicleTypeData: Omit<VehicleType, 'id' | 'dataoraelimina'>[] = [
@@ -17,11 +17,6 @@ const vehicleTypeData: Omit<VehicleType, 'id' | 'dataoraelimina'>[] = [
   { name: 'Ibrida', averageAnnualMileage: 12000 },
   { name: 'GPL', averageAnnualMileage: 15000 },
   { name: 'Metano', averageAnnualMileage: 15000 },
-];
-
-const roleData: Omit<Role, 'id' | 'dataoraelimina'>[] = [
-  { name: 'Amministratore', description: 'Accesso completo a tutte le funzionalità di amministrazione.' },
-  { name: 'Utente', description: 'Accesso standard alle funzionalità dell\'applicazione.' },
 ];
 
 // Common checks for all vehicle types
@@ -66,48 +61,22 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
 
 
 /**
- * Seeds the global, public collections like roles and vehicleTypes.
+ * Seeds the global vehicleTypes collection.
  * It checks if the data already exists to avoid overwriting.
- * This function is designed to be safe to run; it will only write data
- * if the user has administrative permissions.
+ * This function is designed to be safe to run by an admin; it will only write data
+ * if the user has appropriate permissions.
  * It returns an object indicating success or failure.
  */
 export const seedGlobalData = async (firestore: Firestore): Promise<{ success: boolean, message: string }> => {
     const batch = writeBatch(firestore);
-    let collectionsToSeed = 0;
+    let needsSeeding = false;
 
-    // --- 1. Seed Roles ---
-    try {
-        const rolesRef = collection(firestore, 'roles');
-        const rolesSnapshot = await getDocs(query(rolesRef, limit(1)));
-        if (rolesSnapshot.empty) {
-            collectionsToSeed++;
-            roleData.forEach(role => {
-                const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
-                batch.set(roleRef, {
-                    id: roleRef.id,
-                    name: role.name,
-                    description: role.description,
-                    dataoraelimina: null,
-                });
-            });
-        }
-    } catch (error: any) {
-        // This read requires admin. If it fails, we can't proceed with seeding roles.
-        if (error.code === 'permission-denied') {
-            return { success: false, message: 'Permesso negato. Solo un Amministratore può leggere e popolare i ruoli.' };
-        }
-        // For other read errors, report them.
-        return { success: false, message: `Errore durante il controllo dei ruoli: ${error.message}` };
-    }
-
-
-    // --- 2. Seed Vehicle Types ---
+    // --- Seed Vehicle Types and Maintenance Checks ---
     try {
         const vehicleTypesRef = collection(firestore, 'vehicleTypes');
         const vtSnapshot = await getDocs(query(vehicleTypesRef, limit(1)));
         if (vtSnapshot.empty) {
-            collectionsToSeed++;
+            needsSeeding = true;
             vehicleTypeData.forEach(vt => {
                 const vtId = vt.name.toLowerCase();
                 const vtRef = doc(firestore, 'vehicleTypes', vtId);
@@ -132,17 +101,17 @@ export const seedGlobalData = async (firestore: Firestore): Promise<{ success: b
         return { success: false, message: `Errore durante il controllo dei tipi veicolo: ${error.message}` };
     }
     
-    // --- 3. Commit if needed ---
-    if (collectionsToSeed === 0) {
-        return { success: true, message: 'Dati globali già presenti. Nessuna operazione eseguita.' };
+    // --- Commit if needed ---
+    if (!needsSeeding) {
+        return { success: true, message: 'Dati dei tipi veicolo già presenti. Nessuna operazione eseguita.' };
     }
 
     try {
         await batch.commit();
-        return { success: true, message: 'Dati iniziali creati con successo!' };
+        return { success: true, message: 'Tipi veicolo e controlli standard creati con successo!' };
     } catch (error: any) {
         if (error.code === 'permission-denied') {
-             return { success: false, message: 'Permesso negato. Solo gli amministratori possono eseguire questa operazione.' };
+             return { success: false, message: 'Permesso negato. Solo gli amministratori possono creare i dati globali.' };
         }
         return { success: false, message: `Errore durante il salvataggio dei dati: ${error.message}` };
     }
