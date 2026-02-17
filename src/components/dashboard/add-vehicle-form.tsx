@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
+import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import {
   collection,
   doc,
@@ -82,12 +82,8 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const [month, setMonth] = useState<string>('');
   const [day, setDay] = useState<string>('');
   
-  const vehicleTypesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
-  }, [firestore]);
-
-  const { data: vehicleTypes, isLoading: loadingTypes } = useCollection<VehicleType>(vehicleTypesQuery);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
 
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
@@ -99,6 +95,40 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       isTaxi: false,
     },
   });
+
+  // Fetch vehicle types with getDocs
+  useEffect(() => {
+    if (!firestore || !open) {
+      return;
+    }
+
+    const fetchVehicleTypes = async () => {
+      setLoadingTypes(true);
+      try {
+        const vehicleTypesQuery = query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
+        const querySnapshot = await getDocs(vehicleTypesQuery);
+        const types = querySnapshot.docs.map(doc => ({ ...doc.data() }) as VehicleType);
+        setVehicleTypes(types);
+      } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+          path: 'vehicleTypes',
+          operation: 'list',
+          requestResourceData: { context: 'Fetching vehicle types for add vehicle form.' }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: 'destructive',
+          title: 'Errore Caricamento Dati',
+          description: 'Impossibile caricare i tipi di veicolo. L\'amministratore potrebbe dover configurare l\'app.'
+        });
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+
+    fetchVehicleTypes();
+  }, [firestore, open, toast]);
+
 
    // When the dialog opens, reset everything
   useEffect(() => {
@@ -133,7 +163,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   }, [year, month, day, form]);
 
   const selectedTypeId = form.watch('vehicleTypeId');
-  const selectedVehicleType = vehicleTypes?.find(
+  const selectedVehicleType = vehicleTypes.find(
     (vt) => vt.id === selectedTypeId
   );
 
@@ -399,21 +429,21 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          disabled={loadingTypes || !vehicleTypes || vehicleTypes.length === 0}
+                          disabled={loadingTypes || vehicleTypes.length === 0}
                         >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={
                                 loadingTypes 
                                 ? "Caricamento tipi..." 
-                                : (!vehicleTypes || vehicleTypes.length === 0)
+                                : (vehicleTypes.length === 0)
                                     ? "Nessun tipo trovato"
                                     : "Seleziona un tipo"
                                 } />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {vehicleTypes && vehicleTypes.map((vt) => (
+                            {vehicleTypes.map((vt) => (
                               <SelectItem key={vt.id} value={vt.id}>
                                 {vt.name}
                               </SelectItem>
