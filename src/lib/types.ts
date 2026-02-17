@@ -20,7 +20,7 @@ export type Role = {
 
 export type VehicleType = {
     id: string;
-    name: 'Benzina' | 'Diesel' | 'Elettrica' | 'Ibrida';
+    name: string;
     averageAnnualMileage: number;
     dataoraelimina?: string | null;
 }
@@ -45,7 +45,7 @@ export type Vehicle = {
   licensePlate: string;
   imageUrl?: string;
   imageHint?: string;
-  type: VehicleType['name'];
+  type: string;
   vehicleTypeId: string;
   currentMileage: number;
   lastMaintenanceDate: string;
