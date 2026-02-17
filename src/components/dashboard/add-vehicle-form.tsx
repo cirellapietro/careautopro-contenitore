@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
 import {
   collection,
   doc,
@@ -82,42 +82,12 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const [month, setMonth] = useState<string>('');
   const [day, setDay] = useState<string>('');
   
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
-  const [loadingTypes, setLoadingTypes] = useState(true);
+  const vehicleTypesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
+  }, [firestore]);
 
-  useEffect(() => {
-    if (!firestore) {
-      setLoadingTypes(false);
-      return;
-    }
-
-    const fetchVehicleTypes = async () => {
-      setLoadingTypes(true);
-      try {
-        const vehicleTypesQuery = query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
-        const snapshot = await getDocs(vehicleTypesQuery);
-        const types = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as VehicleType);
-        setVehicleTypes(types);
-      } catch (error) {
-        const permissionError = new FirestorePermissionError({
-            path: 'vehicleTypes',
-            operation: 'list',
-            requestResourceData: { context: 'Failed to load vehicle types for the add vehicle form.' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({
-            variant: 'destructive',
-            title: 'Errore di Caricamento',
-            description: 'Impossibile caricare i tipi di veicolo. Controlla i permessi.',
-        });
-      } finally {
-        setLoadingTypes(false);
-      }
-    };
-
-    fetchVehicleTypes();
-  }, [firestore, toast]);
-
+  const { data: vehicleTypes, isLoading: loadingTypes } = useCollection<VehicleType>(vehicleTypesQuery);
 
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
