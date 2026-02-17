@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import {
   collection,
   doc,
-  getDocs,
   writeBatch,
   query,
   where
@@ -42,7 +41,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import type { VehicleType, MaintenanceCheck } from '@/lib/types';
+import type { VehicleType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { fetchMaintenancePlan } from '@/ai/flows/fetch-maintenance-plan';
 import { Checkbox } from '../ui/checkbox';
@@ -75,14 +74,29 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingTypes, setLoadingTypes] = useState(true);
   const [newVehicleId, setNewVehicleId] = useState<string | null>(null);
 
   const [year, setYear] = useState<string>('');
   const [month, setMonth] = useState<string>('');
   const [day, setDay] = useState<string>('');
+  
+  const vehicleTypesQuery = useMemo(() => {
+      if (!firestore) return null;
+      return query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
+  }, [firestore]);
+
+  const { data: vehicleTypes, isLoading: loadingTypes, error: vehicleTypesError } = useCollection<VehicleType>(vehicleTypesQuery);
+
+  useEffect(() => {
+      if (vehicleTypesError) {
+          toast({
+              variant: 'destructive',
+              title: 'Errore',
+              description: 'Impossibile caricare i tipi di veicolo.',
+          });
+      }
+  }, [vehicleTypesError, toast]);
 
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
@@ -128,40 +142,9 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   }, [year, month, day, form]);
 
   const selectedTypeId = form.watch('vehicleTypeId');
-  const selectedVehicleType = vehicleTypes.find(
+  const selectedVehicleType = vehicleTypes?.find(
     (vt) => vt.id === selectedTypeId
   );
-
-  useEffect(() => {
-    if (!firestore) return;
-    const fetchVehicleTypes = async () => {
-      setLoadingTypes(true);
-      try {
-        const typesQuery = query(collection(firestore, 'vehicleTypes'), where('dataoraelimina', '==', null));
-        const snapshot = await getDocs(typesQuery);
-        const types = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as VehicleType)
-        );
-        setVehicleTypes(types);
-      } catch (error) {
-        const typesRef = collection(firestore, 'vehicleTypes');
-        const permissionError = new FirestorePermissionError({
-            path: typesRef.path,
-            operation: 'list',
-            requestResourceData: { context: 'Failed to fetch vehicle types for the add vehicle form.' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({
-          variant: 'destructive',
-          title: 'Errore',
-          description: 'Impossibile caricare i tipi di veicolo.',
-        });
-      } finally {
-        setLoadingTypes(false);
-      }
-    };
-    fetchVehicleTypes();
-  }, [firestore, toast]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -197,9 +180,10 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         };
         firstBatch.set(newVehicleRef, newVehicleData);
 
-        const checksRef = collection(firestore, `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`);
-        const checksSnap = await getDocs(checksRef);
-        const genericChecks = checksSnap.docs.map((d) => d.data() as MaintenanceCheck);
+        const checksCollectionRef = collection(firestore, `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`);
+        const checksQuery = query(checksCollectionRef, where('dataoraelimina', '==', null));
+        const checksSnap = await getDocs(checksQuery);
+        const genericChecks = checksSnap.docs.map((d) => d.data());
         
         for (const check of genericChecks) {
             const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
@@ -429,7 +413,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {vehicleTypes.map((vt) => (
+                            {vehicleTypes && vehicleTypes.map((vt) => (
                               <SelectItem key={vt.id} value={vt.id}>
                                 {vt.name}
                               </SelectItem>
