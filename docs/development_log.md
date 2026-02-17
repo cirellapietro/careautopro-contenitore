@@ -1,4 +1,30 @@
-# Log Cronologico di Sviluppo e Bug-Fixing
+# Log Cro# Entra nella cartella del progetto (se necessario) e inizializza
+cd /home/project 2>/dev/null || cd .
+
+# Installa le dipendenze mancanti per PWA e Android
+npm install @capacitor/core @capacitor/android @capacitor/cli lucide-react react-router-dom firebase
+
+# Crea o aggiorna il file Capacitor per l'APK
+cat <<EOF > capacitor.config.json
+{
+  "appId": "com.careautopro.app",
+    "appName": "CareAutoPro",
+      "webDir": "dist",
+        "server": { "androidScheme": "https" }
+        }
+        EOF
+        
+        # Forza la build del progetto (genera la cartella /dist per la PWA)
+        npm run build
+        
+        # Sincronizza Capacitor per preparare la struttura Android
+        npx cap sync android || (npx cap add android && npx cap sync android)
+        
+        # AGGIORNAMENTO GITHUB: Aggiunge tutto e spedisce
+        git add .
+        git commit -m "Update da Firebase Studio: PWA + APK ready"
+        git push origin main
+        nologico di Sviluppo e Bug-Fixing
 
 Questo documento funge da promemoria e cronistoria del processo di sviluppo e debug dell'applicazione CareAutoPro.
 
