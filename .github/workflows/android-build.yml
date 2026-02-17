@@ -10,13 +10,14 @@ jobs:
           node-version: 20
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
-      - name: Build Static Project
-        run: npx next build
-      - name: Setup Capacitor and Android
+      - name: Build Static HTML
+        run: npm run build || npx next build
+      - name: Bridge Capacitor
         run: |
+          mkdir -p out
           npx cap add android || true
           npx cap sync android
-      - name: Build APK with Gradle
+      - name: Build APK
         run: |
           cd android
           chmod +x gradlew
