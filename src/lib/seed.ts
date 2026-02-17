@@ -8,6 +8,7 @@ import {
   getDocs,
   query,
   limit,
+  CollectionReference,
 } from 'firebase/firestore';
 import { mockVehicles, mockInterventions, mockDrivingSessions } from './mock-data';
 import type { MaintenanceCheck, VehicleType, Role } from './types';
@@ -69,23 +70,23 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
 
 
 /**
- * Seeds the global, public collections like roles, vehicleTypes and their maintenanceChecks.
+ * Seeds the global, public collections like roles and vehicleTypes.
  * It checks if the data already exists to avoid overwriting.
- * This function is designed to be safe to run for any user; it will only write data
- * if the user has administrative permissions, and will fail silently otherwise.
+ * This function is designed to be safe to run; it will only write data
+ * if the user has administrative permissions.
+ * It returns an object indicating success or failure.
  */
-export const seedGlobalData = async (firestore: Firestore) => {
+export const seedGlobalData = async (firestore: Firestore): Promise<{ success: boolean, message: string }> => {
     const batch = writeBatch(firestore);
     let needsCommit = false;
 
-    // --- Seed Roles ---
     try {
+        // Check Roles
         const rolesRef = collection(firestore, 'roles');
-        const rolesQuery = query(rolesRef, limit(1));
-        const rolesSnapshot = await getDocs(rolesQuery);
+        const rolesSnapshot = await getDocs(query(rolesRef, limit(1)));
         if (rolesSnapshot.empty) {
-            console.log('Roles collection is empty. Attempting to seed...');
             needsCommit = true;
+            console.log('Roles collection will be seeded.');
             roleData.forEach(role => {
                 const roleRef = doc(firestore, 'roles', role.name.toLowerCase());
                 batch.set(roleRef, {
@@ -96,22 +97,13 @@ export const seedGlobalData = async (firestore: Firestore) => {
                 });
             });
         }
-    } catch (error: any) {
-        if (error?.code === 'permission-denied') {
-            console.info('Skipping role seed check: Insufficient permissions. This is expected for non-admin users.');
-        } else {
-            console.error('An unexpected error occurred while checking roles during seed:', error);
-        }
-    }
 
-    // --- Seed Vehicle Types and Maintenance Checks ---
-    try {
+        // Check Vehicle Types
         const vehicleTypesRef = collection(firestore, 'vehicleTypes');
-        const vtQuery = query(vehicleTypesRef, limit(1));
-        const vtSnapshot = await getDocs(vtQuery);
+        const vtSnapshot = await getDocs(query(vehicleTypesRef, limit(1)));
         if (vtSnapshot.empty) {
-            console.log('VehicleTypes collection is empty. Attempting to seed...');
             needsCommit = true;
+            console.log('VehicleTypes collection will be seeded.');
             vehicleTypeData.forEach(vt => {
                 const vtRef = doc(firestore, 'vehicleTypes', vt.id);
                 batch.set(vtRef, { ...vt, dataoraelimina: null });
@@ -131,27 +123,40 @@ export const seedGlobalData = async (firestore: Firestore) => {
             });
         }
     } catch (error: any) {
-        if (error?.code === 'permission-denied') {
-            console.info('Skipping vehicle type seed check: Insufficient permissions. This is expected for non-admin users.');
+        // This catch block handles errors during the read phase (getDocs).
+        // A permission denied error here is expected for non-admins and should not stop the process.
+         if (error.code === 'permission-denied') {
+            const msg = 'Permesso negato durante il controllo dei dati. Proseguo con il tentativo di scrittura.';
+            console.info(msg);
+            // We can assume we need to try and write if we can't even read to check.
+            needsCommit = true; 
         } else {
-            console.error('An unexpected error occurred while checking vehicle types during seed:', error);
+             const msg = 'Errore imprevisto durante il controllo dei dati esistenti.';
+            console.error(msg, error);
+            return { success: false, message: `${msg} Dettagli: ${error.message}` };
         }
     }
-
-    // --- Commit Batch if Needed ---
-    if (needsCommit) {
-        try {
-            await batch.commit();
-            console.log('Global data seeding committed successfully.');
-        } catch (serverError: any) {
-            if (serverError.code === 'permission-denied') {
-                console.info('Global data seeding commit failed: Insufficient permissions. This is expected for non-admin users.');
-            } else {
-                console.error('An unexpected error occurred during the global data seed commit:', serverError);
-            }
-        }
-    } else {
+    
+    if (!needsCommit) {
         console.log('Global data already exists. No seeding needed.');
+        return { success: true, message: 'I dati globali esistono già. Nessuna operazione eseguita.' };
+    }
+
+    // --- Commit Batch ---
+    try {
+        await batch.commit();
+        console.log('Global data seeding committed successfully.');
+        return { success: true, message: 'I dati iniziali sono stati creati con successo!' };
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            const msg = 'Permesso negato. Solo gli amministratori possono eseguire questa operazione.';
+            console.warn('Global data seeding commit failed:', msg, error);
+            return { success: false, message: msg };
+        } else {
+            const msg = 'Si è verificato un errore imprevisto durante la creazione dei dati.';
+            console.error(msg, error);
+            return { success: false, message: `${msg} Dettagli: ${error.message}` };
+        }
     }
 };
 
