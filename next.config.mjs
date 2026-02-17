@@ -5,6 +5,7 @@ const nextConfig = {
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  swcMinify: true
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true
 };
 export default nextConfig;

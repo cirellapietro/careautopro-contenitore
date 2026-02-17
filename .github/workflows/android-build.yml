@@ -8,21 +8,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install Dependencies
+      - name: Install
         run: npm install --legacy-peer-deps
-      - name: Build Static HTML
-        run: npm run build || npx next build
-      - name: Bridge Capacitor
+      - name: Build
+        run: npx next build
+      - name: Capacitor
         run: |
-          mkdir -p out
+          mkdir -p out && touch out/.nojekyll
           npx cap add android || true
           npx cap sync android
-      - name: Build APK
+      - name: APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: CareAutoPro-APK
