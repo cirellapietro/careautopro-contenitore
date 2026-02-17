@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { doc, updateDoc, setDoc, collection, query, where } from 'firebase/firestore';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useParams } from 'next/navigation';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -148,7 +148,8 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
     );
 }
 
-export default function AdminVehicleTypeEditPage({ params }: { params: { vehicleTypeId: string } }) {
+export default function AdminVehicleTypeEditPage() {
+    const params = useParams() as { vehicleTypeId: string };
     const { user: currentUser, loading: userLoading } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();

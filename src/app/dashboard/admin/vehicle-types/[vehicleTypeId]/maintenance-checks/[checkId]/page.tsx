@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { doc, updateDoc, setDoc, collection } from 'firebase/firestore';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useParams } from 'next/navigation';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -32,7 +32,8 @@ type PageParams = {
     checkId: string;
 }
 
-export default function AdminCheckEditPage({ params }: { params: PageParams }) {
+export default function AdminCheckEditPage() {
+    const params = useParams() as PageParams;
     const { user: currentUser, loading: userLoading } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();

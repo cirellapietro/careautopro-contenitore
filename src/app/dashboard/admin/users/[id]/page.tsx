@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { doc, updateDoc, collection, query, where } from 'firebase/firestore';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useParams } from 'next/navigation';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -26,7 +26,8 @@ const userEditSchema = z.object({
   role: z.string({ required_error: 'Seleziona un ruolo.' }),
 });
 
-export default function AdminUserEditPage({ params }: { params: { id: string } }) {
+export default function AdminUserEditPage() {
+    const params = useParams() as { id: string };
     const { user: currentUser, loading: userLoading } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
