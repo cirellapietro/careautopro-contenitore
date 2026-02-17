@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -169,7 +169,7 @@ export default function AdminVehicleTypeEditPage() {
         resolver: zodResolver(vehicleTypeEditSchema),
         defaultValues: {
             name: '',
-            averageAnnualMileage: undefined,
+            averageAnnualMileage: 0,
         }
     });
 
@@ -197,11 +197,7 @@ export default function AdminVehicleTypeEditPage() {
 
         operation.then(() => {
             toast({ title: "Successo", description: isNew ? "Tipo veicolo creato." : "Tipo veicolo aggiornato." });
-            if (isNew) {
-                router.push(`/dashboard/admin/vehicle-types/${vtRef.id}`);
-            } else {
-                router.push('/dashboard/admin/vehicle-types');
-            }
+            router.push('/dashboard/admin/vehicle-types');
         }).catch(serverError => {
             const permissionError = new FirestorePermissionError({
                 path: vtRef.path,
@@ -262,7 +258,7 @@ export default function AdminVehicleTypeEditPage() {
                                     <FormItem>
                                         <FormLabel>Chilometraggio Medio Annuo (km)</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="Es. 15000" {...field} value={field.value ?? ''} />
+                                            <Input type="number" placeholder="Es. 15000" {...field} value={field.value} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
