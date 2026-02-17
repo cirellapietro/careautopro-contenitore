@@ -10,9 +10,9 @@ jobs:
           node-version: 20
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
-      - name: Build Project
+      - name: Build Static Project
         run: npx next build
-      - name: Setup Android
+      - name: Setup Capacitor and Android
         run: |
           npx cap add android || true
           npx cap sync android
