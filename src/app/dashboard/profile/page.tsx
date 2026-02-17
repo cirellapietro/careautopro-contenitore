@@ -224,7 +224,7 @@ export default function ProfilePage() {
                                     <FormItem>
                                     <FormLabel>Anticipo promemoria (giorni)</FormLabel>
                                     <FormControl>
-                                      <Input type="number" placeholder="Es. 3" {...field} />
+                                      <Input type="number" placeholder="Es. 3" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormDescription>
                                       Indica quanti giorni prima della scadenza vuoi iniziare a ricevere i promemoria. La notifica ti verrà inviata ogni giorno fino alla data dell'intervento.

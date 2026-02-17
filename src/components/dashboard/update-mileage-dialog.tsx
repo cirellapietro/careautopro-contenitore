@@ -123,7 +123,7 @@ export function UpdateMileageDialog({ open, onOpenChange, vehicles }: UpdateMile
                       <FormItem>
                         <FormLabel>{field.name}</FormLabel>
                         <FormControl>
-                          <Input type="number" {...formField} />
+                          <Input type="number" {...formField} value={formField.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

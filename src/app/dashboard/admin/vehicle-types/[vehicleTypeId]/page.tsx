@@ -258,7 +258,7 @@ export default function AdminVehicleTypeEditPage() {
                                     <FormItem>
                                         <FormLabel>Chilometraggio Medio Annuo (km)</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="Es. 15000" {...field} value={field.value} />
+                                            <Input type="number" placeholder="Es. 15000" {...field} value={field.value ?? ''} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
