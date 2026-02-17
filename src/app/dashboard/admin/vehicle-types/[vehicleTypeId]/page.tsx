@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -150,22 +150,27 @@ function MaintenanceChecksList({ vehicleTypeId }: { vehicleTypeId: string }) {
 
 export default function AdminVehicleTypeEditPage() {
     const params = useParams() as { vehicleTypeId: string };
+    const { vehicleTypeId } = params;
     const { user: currentUser, loading: userLoading } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const router = useRouter();
-    const isNew = params.vehicleTypeId === 'new';
+    const isNew = vehicleTypeId === 'new';
 
     const vtRef = useMemo(() => {
         if (!firestore) return null;
         if (isNew) return doc(collection(firestore, 'vehicleTypes'));
-        return doc(firestore, 'vehicleTypes', params.vehicleTypeId);
-    }, [firestore, params.vehicleTypeId, isNew]);
+        return doc(firestore, 'vehicleTypes', vehicleTypeId);
+    }, [firestore, vehicleTypeId, isNew]);
 
     const { data: vehicleTypeToEdit, isLoading: isVtLoading } = useDoc<VehicleType>(isNew ? null : vtRef);
 
     const form = useForm<z.infer<typeof vehicleTypeEditSchema>>({
         resolver: zodResolver(vehicleTypeEditSchema),
+        defaultValues: {
+            name: '',
+            averageAnnualMileage: undefined,
+        }
     });
 
     useEffect(() => {
@@ -257,7 +262,7 @@ export default function AdminVehicleTypeEditPage() {
                                     <FormItem>
                                         <FormLabel>Chilometraggio Medio Annuo (km)</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="Es. 15000" {...field} />
+                                            <Input type="number" placeholder="Es. 15000" {...field} value={field.value ?? ''} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -274,7 +279,7 @@ export default function AdminVehicleTypeEditPage() {
                 </form>
             </Form>
             
-            {!isNew && <MaintenanceChecksList vehicleTypeId={params.vehicleTypeId} />}
+            {!isNew && <MaintenanceChecksList vehicleTypeId={vehicleTypeId} />}
         </div>
     );
 }

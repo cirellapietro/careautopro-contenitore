@@ -50,6 +50,11 @@ export default function AdminCheckEditPage() {
 
     const form = useForm<z.infer<typeof checkEditSchema>>({
         resolver: zodResolver(checkEditSchema),
+        defaultValues: {
+            description: '',
+            intervalMileage: undefined,
+            intervalTime: undefined,
+        }
     });
 
     useEffect(() => {
@@ -146,7 +151,7 @@ export default function AdminCheckEditPage() {
                                         <FormItem>
                                             <FormLabel>Intervallo Chilometrico (opzionale)</FormLabel>
                                             <FormControl>
-                                                <Input type="number" placeholder="Es. 15000" {...field} />
+                                                <Input type="number" placeholder="Es. 15000" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormDescription>Ogni quanti km va eseguito.</FormDescription>
                                             <FormMessage />
@@ -160,7 +165,7 @@ export default function AdminCheckEditPage() {
                                         <FormItem>
                                             <FormLabel>Intervallo Temporale (mesi, opzionale)</FormLabel>
                                             <FormControl>
-                                                <Input type="number" placeholder="Es. 12" {...field} />
+                                                <Input type="number" placeholder="Es. 12" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormDescription>Ogni quanti mesi va eseguito.</FormDescription>
                                             <FormMessage />
