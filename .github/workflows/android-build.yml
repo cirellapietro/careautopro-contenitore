@@ -6,7 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: set up JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -28,8 +28,6 @@ jobs:
           npx cap sync android
           cd android
           chmod +x gradlew
-          # Accetta le licenze Android in modo forzato
-          yes | sdkmanager --licenses || true
           ./gradlew assembleDebug --no-daemon
           
       - name: Upload APK
