@@ -1,11 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Necessario per l'APK
+  output: 'export',
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  // Questa riga permette a Vercel di saltare il controllo generateStaticParams
   trailingSlash: true,
+  distDir: 'out',
 };
-
 export default nextConfig;
