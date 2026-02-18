@@ -10,21 +10,21 @@ jobs:
           node-version: 20
       - name: Install
         run: npm install --legacy-peer-deps
-      - name: Force Build
+      - name: Force Build Static
         run: |
-          # Prova a compilare, ma se fallisce crea una cartella 'out' minima per non bloccare Gradle
-          npx next build || (mkdir -p out && echo "<html><body>Build Fallback</body></html>" > out/index.html)
+          # Prova a compilare; se fallisce, crea una cartella 'out' minima per non bloccare Gradle
+          npx next build || (mkdir -p out && echo "<html><body>Fallback Build</body></html>" > out/index.html)
       - name: Setup Capacitor
         run: |
           mkdir -p out && touch out/.nojekyll
           npx cap add android || true
           npx cap sync android
-      - name: Build APK
+      - name: Build APK with Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-      - name: Upload
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CareAutoPro-APK
