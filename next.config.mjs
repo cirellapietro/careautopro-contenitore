@@ -5,7 +5,5 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   trailingSlash: true,
-  // Evita il blocco sulle rotte dinamiche durante l'export
-  distDir: 'out',
 };
 export default nextConfig;
