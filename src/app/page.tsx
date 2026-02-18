@@ -1,6 +1,8 @@
 "use client";
 export const dynamicParams = false;
 export const generateStaticParams = () => [];
+export const dynamicParams = false;
+export const generateStaticParams = () => [];
 
 import Image from 'next/image';
 import Link from 'next/link';
