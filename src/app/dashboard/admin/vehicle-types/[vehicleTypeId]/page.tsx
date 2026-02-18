@@ -1,4 +1,6 @@
+"use client";
 export const dynamicParams = false; export const generateStaticParams = () => [];
+
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';

@@ -1,3 +1,5 @@
+"use client";
+export const dynamicParams = false; export const generateStaticParams = () => [];
 'use client';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
