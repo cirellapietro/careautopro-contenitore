@@ -210,3 +210,4 @@ export default function VehicleDetailPage() {
     </div>
   );
 }
+export const dynamicParams = true; export const generateStaticParams = () => [];

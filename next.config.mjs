@@ -5,7 +5,7 @@ const nextConfig = {
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  // Questo evita l'errore dei parametri statici mancanti
   trailingSlash: true,
-  skipTrailingSlashRedirect: true
 };
 export default nextConfig;

@@ -181,3 +181,4 @@ export default function AdminUserEditPage() {
         </div>
     );
 }
+export const dynamicParams = true; export const generateStaticParams = () => [];
