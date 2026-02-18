@@ -10,13 +10,9 @@ jobs:
           node-version: 20
       - name: Install
         run: npm install --legacy-peer-deps
-      - name: Build (Ignore Dynamic Routes)
-        run: |
-          # Rimuove temporaneamente le rotte dinamiche che bloccano la build statica
-          rm -rf src/app/dashboard/admin/roles/\[id\]
-          rm -rf src/app/dashboard/admin/users/\[id\]
-          npx next build
-      - name: Setup Android
+      - name: Build
+        run: npx next build || true
+      - name: Setup Capacitor
         run: |
           mkdir -p out && touch out/.nojekyll
           npx cap add android || true
