@@ -1,10 +1,3 @@
-"use client";
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-
-
 'use client';
 
 import { useMemo } from 'react';
@@ -217,4 +210,3 @@ export default function VehicleDetailPage() {
     </div>
   );
 }
-export const dynamicParams = true; export const generateStaticParams = () => [];

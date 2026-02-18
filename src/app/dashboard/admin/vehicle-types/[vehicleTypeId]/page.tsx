@@ -1,10 +1,3 @@
-"use client";
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-
-
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -204,7 +197,9 @@ export default function AdminVehicleTypeEditPage() {
 
         operation.then(() => {
             toast({ title: "Successo", description: isNew ? "Tipo veicolo creato." : "Tipo veicolo aggiornato." });
-            router.push('/dashboard/admin/vehicle-types');
+            if (isNew) {
+                router.push('/dashboard/admin/vehicle-types');
+            }
         }).catch(serverError => {
             const permissionError = new FirestorePermissionError({
                 path: vtRef.path,

@@ -1,9 +1,3 @@
-"use client";
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -52,10 +46,17 @@ export default function ProfilePage() {
 
     const profileForm = useForm<z.infer<typeof profileSchema>>({
         resolver: zodResolver(profileSchema),
+        defaultValues: {
+            displayName: "",
+        },
     });
 
     const notificationForm = useForm<z.infer<typeof notificationSchema>>({
         resolver: zodResolver(notificationSchema),
+        defaultValues: {
+            notificationChannels: [],
+            notificationReminderTime: 0,
+        },
     });
 
     useEffect(() => {

@@ -1,10 +1,3 @@
-"use client";
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-
-
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -59,8 +52,8 @@ export default function AdminCheckEditPage() {
         resolver: zodResolver(checkEditSchema),
         defaultValues: {
             description: '',
-            intervalMileage: undefined,
-            intervalTime: undefined,
+            intervalMileage: 0,
+            intervalTime: 0,
         }
     });
 
@@ -74,8 +67,8 @@ export default function AdminCheckEditPage() {
         if (checkToEdit && !isNew) {
             form.reset({
                 description: checkToEdit.description || '',
-                intervalMileage: checkToEdit.intervalMileage || undefined,
-                intervalTime: checkToEdit.intervalTime || undefined,
+                intervalMileage: checkToEdit.intervalMileage || 0,
+                intervalTime: checkToEdit.intervalTime || 0,
             });
         }
     }, [checkToEdit, form, isNew]);

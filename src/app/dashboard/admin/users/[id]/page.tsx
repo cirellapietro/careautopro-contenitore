@@ -1,10 +1,3 @@
-"use client";
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-export const dynamicParams = false;
-export const generateStaticParams = () => [];
-
-
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -188,4 +181,3 @@ export default function AdminUserEditPage() {
         </div>
     );
 }
-export const dynamicParams = true; export const generateStaticParams = () => [];
