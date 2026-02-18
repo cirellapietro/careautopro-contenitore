@@ -30,3 +30,4 @@ jobs:
         with:
           name: CareAutoPro-APK
           path: android/app/build/outputs/apk/debug/*.apk
+# Force rebuild Wed Feb 18 05:32:00 AM UTC 2026
