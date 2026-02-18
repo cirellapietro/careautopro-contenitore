@@ -1,27 +1,30 @@
-name: Build APK
+name: Build APK Real
 on: [push]
 jobs:
   android-job:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install and Build
+      - name: Build Web
         run: |
-          npm install --legacy-peer-deps || true
+          npm install --legacy-peer-deps
           npx next build || (mkdir -p out && echo "fallback" > out/index.html)
-      - name: Generate APK
+      - name: Build Android
         run: |
+          # Crea la cartella se manca e sincronizza
           npx cap add android || true
-          npx cap sync android || true
-          cd android && chmod +x gradlew && ./gradlew assembleDebug || true
-      - name: Save APK
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CareAutoPro-APK
-          path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
+          # Cerchiamo l'APK in modo più ampio per non mancarlo
+          path: android/app/build/outputs/apk/debug/app-debug.apk
