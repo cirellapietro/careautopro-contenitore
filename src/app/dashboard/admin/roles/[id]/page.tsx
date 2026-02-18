@@ -165,3 +165,5 @@ export default function AdminRoleEditPage() {
         </div>
     );
 }
+export const dynamicParams = true;
+export const dynamic = 'force-dynamic';
