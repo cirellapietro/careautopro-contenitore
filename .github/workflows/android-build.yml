@@ -14,17 +14,14 @@ jobs:
         run: |
           npm install --legacy-peer-deps
           npx next build || (mkdir -p out && echo "fallback" > out/index.html)
-      - name: Build Android
+      - name: Build Android APK
         run: |
-          # Crea la cartella se manca e sincronizza
-          npx cap add android || true
           npx cap sync android
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CareAutoPro-APK
-          # Cerchiamo l'APK in modo più ampio per non mancarlo
           path: android/app/build/outputs/apk/debug/app-debug.apk
