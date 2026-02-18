@@ -1,5 +1,7 @@
 "use client";
-export const dynamicParams = false; export const generateStaticParams = () => [];
+export const dynamicParams = false;
+export const generateStaticParams = () => [];
+
 import React from 'react';
 export default function VehiclesPage() {
   return (

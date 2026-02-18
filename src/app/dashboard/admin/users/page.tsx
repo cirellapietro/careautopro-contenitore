@@ -1,5 +1,7 @@
 "use client";
-export const dynamicParams = false; export const generateStaticParams = () => [];
+export const dynamicParams = false;
+export const generateStaticParams = () => [];
+
 'use client';
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
