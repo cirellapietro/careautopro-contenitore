@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
-import { useUser } from "@/firebase/auth/use-user";
+//import { useUser } from "@/firebase/auth/use-user";
 // ... il resto degli import
 
 import { useEffect, useMemo } from 'react'; a 
