@@ -1,4 +1,8 @@
-'use client';
+"use client";
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
+// ... resto del codice del file [id]/page.tsx ..
 
 import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
