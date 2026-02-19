@@ -2,9 +2,6 @@
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
-//import { useUser } from "@/firebase/auth/use-user";
-// ... il resto degli import
-
 import { useEffect, useMemo } from 'react'; a 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
