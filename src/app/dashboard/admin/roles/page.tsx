@@ -1,9 +1,6 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-//import { useUser } from "@/firebase/auth/use-user";
-// ... il resto degli import
-
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, updateDoc, query, where } from 'firebase/firestore';
