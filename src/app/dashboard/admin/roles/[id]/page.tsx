@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
-import { useEffect, useMemo } from 'react'; a 
+import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,7 +36,6 @@ export default function AdminRoleEditPage() {
     const isNew = id === 'new';
 
     const roleRef = useMemo(() => {
-        // Don't fetch if the user isn't a loaded admin, or if it's a new role
         if (!firestore || !currentUser || currentUser.role !== 'Amministratore' || isNew) {
             return null;
         }
@@ -106,7 +105,6 @@ export default function AdminRoleEditPage() {
         );
     }
     
-    // Once all loading is done, if we're editing and have no role, it's a 404
     if (!isNew && !isLoading && !roleToEdit) {
         notFound();
     }
@@ -166,5 +164,4 @@ export default function AdminRoleEditPage() {
             </Form>
         </div>
     );
-}
-
+                }
