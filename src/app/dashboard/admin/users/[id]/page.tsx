@@ -1,6 +1,16 @@
 "use client";
+
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
+
+// Questa funzione sblocca l'errore di GitHub Actions
+export async function generateStaticParams() {
+  return [];
+}
+
+import { useEffect, useState } from 'react';
+// ... prosegui con il resto del tuo codice originale
+
 
 // ... resto del codice del file [id]/page.tsx ..
 
