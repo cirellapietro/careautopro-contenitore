@@ -84,45 +84,39 @@ export default function AdminRolesPage() {
           <CardHeader>
             <CardTitle>Elenco Ruoli</CardTitle>
             <CardDescription>
-              Visualizza e gestisci i ruoli utente disponibili nell'applicazione. I ruoli eliminati non sono visibili.
+              Visualizza e gestisci i ruoli utente disponibili.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {rolesLoading && !roles ? (
-              <div className="flex h-48 items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrizione</TableHead>
-                    <TableHead className="text-right">Azioni</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Descrizione</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {roles && roles.map(role => (
+                  <TableRow 
+                    key={role.id}
+                    className={cn("cursor-pointer", role.dataoraelimina && 'text-muted-foreground opacity-50')}
+                    onClick={() => !role.dataoraelimina && router.push(`/dashboard/admin/roles/${role.id}`)}
+                  >
+                    <TableCell className="font-medium">{role.name}</TableCell>
+                    <TableCell>{role.description}</TableCell>
+                    <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/roles/${role.id}`)}} disabled={!!role.dataoraelimina}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); }} disabled={!!role.dataoraelimina}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {roles && roles.map(role => (
-                    <TableRow 
-                      key={role.id}
-                      className={cn("cursor-pointer", role.dataoraelimina && 'text-muted-foreground opacity-50')}
-                      onClick={() => !role.dataoraelimina && router.push(`/dashboard/admin/roles/${role.id}`)}
-                    >
-                      <TableCell className="font-medium">{role.name}</TableCell>
-                      <TableCell>{role.description}</TableCell>
-                      <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/roles/${role.id}`)}} disabled={!!role.dataoraelimina}>
-                              <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); }} disabled={!!role.dataoraelimina}>
-                              <Trash2 className="h-4 w-4" />
-                          </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
@@ -142,4 +136,5 @@ export default function AdminRolesPage() {
       </AlertDialog>
     </>
   )
-                      }
+    }
+      
