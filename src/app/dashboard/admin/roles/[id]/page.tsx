@@ -1,49 +1,60 @@
 "use client";
 export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
 
-import { useEffect, useMemo } from 'react';
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { doc, updateDoc, setDoc, collection } from 'firebase/firestore';
-import { notFound, useRouter, useParams } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirebase, useDoc } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
-import { Loader2 } from 'lucide-react';
+import { useFirebase, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { collection, doc, updateDoc, query, where } from 'firebase/firestore';
 import type { Role } from '@/lib/types';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
-const schema = z.object({ name: z.string().min(2), description: z.string().optional() });
-
-export default function AdminRoleEditPage() {
-    const { id } = useParams() as { id: string };
-    const { user: currentUser, loading: userLoading } = useUser();
-    const { firestore } = useFirebase();
-    const { toast } = useToast();
-    const router = useRouter();
-    const isNew = id === 'new';
-    const roleRef = useMemo(() => (!firestore || isNew) ? null : doc(firestore, 'roles', id), [firestore, id, isNew]);
-    const { data: roleToEdit, isLoading } = useDoc<Role>(roleRef);
-    const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: '', description: '' } });
-    useEffect(() => {
-        if (roleToEdit) form.reset({ name: roleToEdit.name, description: roleToEdit.description });
-    }, [roleToEdit, form]);
-    const onSubmit = (data: any) => {
-        const ref = isNew ? doc(collection(firestore!, 'roles')) : roleRef!;
-        const op = isNew ? setDoc(ref, { ...data, id: ref.id }) : updateDoc(ref, data);
-        op.then(() => router.push('/dashboard/admin/roles'));
-    };
-    if (userLoading || (!isNew && isLoading)) return <Loader2 className="animate-spin" />;
-    return (
-        <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="name" render={({ field }) => (
-                <FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-            )} />
-            <Button type="submit">Salva</Button>
-        </form></Form>
-    );
+export default function AdminRolesPage() {
+  const { user: currentUser, loading: userLoading } = useUser();
+  const { firestore } = useFirebase();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+  const rolesQuery = useMemo(() => {
+    if (!firestore || currentUser?.role !== 'Amministratore') return null;
+    return query(collection(firestore, 'roles'), where('dataoraelimina', '==', null));
+  }, [firestore, currentUser]);
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesQuery);
+  useEffect(() => {
+    if (!userLoading && (!currentUser || currentUser.role !== 'Amministratore')) router.push('/dashboard');
+  }, [currentUser, userLoading, router]);
+  const handleDelete = () => {
+    if (!roleToDelete || !firestore) return;
+    const docRef = doc(firestore, 'roles', roleToDelete.id);
+    updateDoc(docRef, { dataoraelimina: new Date().toISOString() }).then(() => {
+        toast({ title: "Ruolo eliminato" });
+    }).finally(() => setRoleToDelete(null));
+  };
+  if (userLoading || rolesLoading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Ruoli</h1>
+        <Button onClick={() => router.push('/dashboard/admin/roles/new')}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi</Button>
+      </div>
+      <Card><CardContent>
+        <Table><TableBody>
+          {roles?.map(role => (
+            <TableRow key={role.id} onClick={() => router.push(`/dashboard/admin/roles/${role.id}`)}>
+              <TableCell>{role.name}</TableCell>
+              <TableCell className="text-right">
+                <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); }}><Trash2 className="h-4 w-4" /></Button>
+              </TableCell>
+            </TableRow>
+          ))}</TableBody></Table>
+      </CardContent></Card>
+    </div>
+  );
 }
