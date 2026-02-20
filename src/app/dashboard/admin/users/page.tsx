@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection } from "@/firebase";
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
