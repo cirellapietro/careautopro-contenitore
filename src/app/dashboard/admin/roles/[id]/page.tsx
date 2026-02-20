@@ -3,15 +3,6 @@
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
-// Indispensabile per evitare il blocco "missing generateStaticParams"
-export async function generateStaticParams() {
-  return [];
-}
-
-import { useEffect, useMemo } from 'react';
-// ... prosegui con il codice che abbiamo pulito prima
-
-
 import { useEffect, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -174,4 +165,4 @@ export default function AdminRoleEditPage() {
             </Form>
         </div>
     );
-                }
+}
