@@ -1,13 +1,11 @@
 import UserClient from './UserClient';
 
-// Con output: export, Next.js DEVE conoscere almeno un ID in fase di build
+export const dynamic = 'force-static';
+
 export async function generateStaticParams() {
-  // Restituiamo un segnaposto. In produzione, potresti voler scaricare gli ID reali qui.
+  // Obbligatorio per "output: export". Registriamo un placeholder.
   return [{ id: 'placeholder' }];
 }
-
-// Forza il rendering statico
-export const dynamic = 'force-static';
 
 export default function Page({ params }: { params: { id: string } }) {
   return <UserClient id={params.id} />;
