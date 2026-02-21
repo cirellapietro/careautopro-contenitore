@@ -3,7 +3,7 @@ import VehicleTypeClient from './VehicleTypeClient';
 export const dynamic = 'force-static';
 
 export async function generateStaticParams() {
-  // Obbligatorio per "output: export". Registriamo un placeholder.
+  // Placeholder necessario per il build statico
   return [{ vehicleTypeId: 'placeholder' }];
 }
 
