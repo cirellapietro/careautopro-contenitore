@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function RoleClient({ id }: { id: string }) {
+export default function UserClient({ id }: { id: string }) {
   const router = useRouter();
   const { firestore } = useFirebase();
   const { toast } = useToast();
@@ -20,13 +20,13 @@ export default function RoleClient({ id }: { id: string }) {
     async function fetchData() {
       if (!firestore || !id) return;
       try {
-        const docRef = doc(firestore, 'roles', id);
+        const docRef = doc(firestore, 'users', id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setData({ id: docSnap.id, ...docSnap.data() });
         } else {
-          toast({ title: "Errore", description: "role non trovato", variant: "destructive" });
-          router.push('/dashboard/admin/roles');
+          toast({ title: "Errore", description: "user non trovato", variant: "destructive" });
+          router.push('/dashboard/admin/users');
         }
       } catch (error) {
         console.error("Errore caricamento:", error);
@@ -50,7 +50,7 @@ export default function RoleClient({ id }: { id: string }) {
           <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">Modifica Role</h1>
+          <h1 className="text-3xl font-bold">Modifica User</h1>
         </div>
         <Button onClick={() => toast({ title: "Info", description: "Salvataggio non ancora implementato" })}>
           <Save className="mr-2 h-4 w-4" /> Salva

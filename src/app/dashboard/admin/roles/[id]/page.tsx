@@ -1,12 +1,10 @@
 import RoleClient from './RoleClient';
 
 export async function generateStaticParams() {
-  // Array vuoto per supportare la generazione dinamica on-demand
+  // Necessario per evitare l'errore di build in Next.js 15+
   return [];
 }
 
 export default function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
-
-  return <RoleClient id={id} />;
+  return <RoleClient id={params.id} />;
 }
