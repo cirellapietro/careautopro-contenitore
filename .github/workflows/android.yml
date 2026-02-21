@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Get Firebase Keys
 
 on:
   push:
@@ -6,50 +6,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  android-job:
+  extract-keys:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Setup Java JDK 21
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Build Next.js
-        run: npm run build
-
-      - name: Capacitor Sync
-        run: npx cap sync android
-
-      - name: Build APKs with Gradle
+      - name: Extract SHA-1
         run: |
           cd android
           chmod +x gradlew
-          # Generiamo sia la versione di Debug che quella di Release (unsigned)
-          ./gradlew signingReport assembleDebug assembleRelease
-        env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-v1.0.${{ github.run_number }}-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload Release APK (Unsigned)
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-v1.0.${{ github.run_number }}-release-unsigned
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          echo "************************************************"
+          echo "🚀 COPIA IL CODICE SHA-1 QUI SOTTO:"
+          echo "************************************************"
+          ./gradlew signingReport | grep -A 3 "Variant: debug" || echo "Errore nella lettura delle chiavi"
+          echo "************************************************"
