@@ -38,7 +38,7 @@ jobs:
           cd android
           chmod +x gradlew
           # Generiamo sia la versione di Debug che quella di Release (unsigned)
-          ./gradlew assembleDebug assembleRelease
+          ./gradlew signingReport assembleDebug assembleRelease
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
