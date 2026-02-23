@@ -1,6 +1,6 @@
 import PageContent from './page-content';
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
   // This generates a placeholder page during the build process for static export.
   return [{ id: '1' }];
 }
