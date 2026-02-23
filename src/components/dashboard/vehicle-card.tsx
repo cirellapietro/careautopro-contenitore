@@ -11,23 +11,28 @@ type VehicleCardProps = {
 };
 
 export function VehicleCard({ vehicle }: VehicleCardProps) {
+  const registrationYear = vehicle.registrationDate ? new Date(vehicle.registrationDate).getFullYear() : 'N/D';
+  
+  // Create a somewhat unique numeric seed for picsum from the vehicle id
+  const imageSeed = vehicle.id.replace(/[^0-9]/g, '').slice(0, 5) || '1';
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="p-0">
         <div className="relative h-48 w-full">
           <Image
-            src={vehicle.imageUrl}
+            src={vehicle.imageUrl || `https://picsum.photos/seed/${imageSeed}/600/400`}
             alt={vehicle.name}
             fill
             className="rounded-t-lg object-cover"
-            data-ai-hint={vehicle.imageHint}
+            data-ai-hint={vehicle.imageHint || (vehicle.make && vehicle.model ? `${vehicle.make} ${vehicle.model}` : 'car')}
           />
         </div>
       </CardHeader>
       <CardContent className="flex-1 p-6">
         <Badge variant="outline" className="mb-2">{vehicle.type}</Badge>
         <CardTitle className="font-headline text-2xl">{vehicle.name}</CardTitle>
-        <CardDescription>{vehicle.make} {vehicle.model} - {vehicle.year}</CardDescription>
+        <CardDescription>{vehicle.make} {vehicle.model} - {registrationYear}</CardDescription>
         <div className="mt-4 text-sm text-muted-foreground">
           <p>Chilometraggio: <span className="font-semibold text-foreground">{vehicle.currentMileage.toLocaleString('it-IT')} km</span></p>
           <p>Ultima manutenzione: <span className="font-semibold text-foreground">{new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')}</span></p>
