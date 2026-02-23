@@ -4,10 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-export async function generateStaticParams() {
-  return [];
-}
-
 export default function RoleDetailPage() {
   const params = useParams();
   const router = useRouter();
