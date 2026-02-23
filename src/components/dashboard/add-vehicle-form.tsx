@@ -162,7 +162,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     } else {
         form.setValue('registrationDate', '', { shouldValidate: true });
     }
-  }, [year, month, day, form.setValue]);
+  }, [year, month, day, form]);
 
   const selectedTypeId = form.watch('vehicleTypeId');
   const selectedVehicleType = vehicleTypes.find(
@@ -286,10 +286,13 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     }
   };
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 80 }, (_, i) => currentYear - i);
-  const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: new Date(0, i).toLocaleString('it-IT', { month: 'long' }) }));
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const { years, months, days } = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 80 }, (_, i) => currentYear - i);
+    const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: new Date(0, i).toLocaleString('it-IT', { month: 'long' }) }));
+    const days = Array.from({ length: 31 }, (_, i) => i + 1);
+    return { years, months, days };
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {

@@ -116,6 +116,10 @@ function VehicleDetailContent() {
     );
   }
   
+  const registrationYear = vehicle.registrationDate && !isNaN(new Date(vehicle.registrationDate).getTime())
+    ? new Date(vehicle.registrationDate).getFullYear()
+    : 'N/D';
+
   const registrationDateFormatted = vehicle.registrationDate && !isNaN(new Date(vehicle.registrationDate).getTime()) 
     ? format(new Date(vehicle.registrationDate), 'dd MMMM yyyy', { locale: it }) 
     : 'N/D';
@@ -135,7 +139,7 @@ function VehicleDetailContent() {
       </div>
       <div className="space-y-2">
         <h1 className="font-headline text-3xl font-bold">{vehicle.name}</h1>
-        <p className="text-muted-foreground">{vehicle.make} {vehicle.model} - {vehicle.registrationDate ? new Date(vehicle.registrationDate).getFullYear() : 'N/D'}</p>
+        <p className="text-muted-foreground">{vehicle.make} {vehicle.model} - {registrationYear}</p>
       </div>
       
       <Card>

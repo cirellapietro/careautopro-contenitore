@@ -8,6 +8,24 @@ import { Car, Wrench, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Logo } from '@/components/logo';
+import { useEffect, useState } from 'react';
+
+function Footer() {
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
+  return (
+    <footer className="bg-background py-6">
+      <div className="container mx-auto flex items-center justify-between px-4 text-sm text-muted-foreground">
+        <p>&copy; {year} CareAutoPro. Tutti i diritti riservati.</p>
+        <p>Versione: 1.0.0</p>
+      </div>
+    </footer>
+  );
+}
 
 export default function LandingPage() {
   return (
@@ -89,12 +107,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="bg-background py-6">
-        <div className="container mx-auto flex items-center justify-between px-4 text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} CareAutoPro. Tutti i diritti riservati.</p>
-          <p>Versione: 1.0.0</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
