@@ -1,11 +1,4 @@
-import PageContent from './page-content';
-
-export async function generateStaticParams() {
-  // We need to generate a placeholder page for the build process.
-  // The actual ID will be read from query params on the client side.
-  return [{ id: 'view' }];
-}
-
-export default function VehicleDetailPage() {
-  return <PageContent />;
+// This file is obsolete. Its logic has been moved to /src/app/dashboard/vehicles/view/page.tsx
+export default function ObsoleteVehicleDetailPage() {
+  return null;
 }

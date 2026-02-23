@@ -1,9 +1,4 @@
-import PageContent from './page-content';
-
-export async function generateStaticParams() {
-  return [{ id: 'view' }];
-}
-
-export default function UserDetailPage() {
-  return <PageContent />;
+// This file is obsolete. Its logic has been moved to /src/app/dashboard/admin/users/view/page.tsx
+export default function ObsoleteUserDetailPage() {
+  return null;
 }
