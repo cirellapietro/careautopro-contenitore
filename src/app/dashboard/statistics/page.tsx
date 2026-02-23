@@ -13,12 +13,13 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import type { DailyStat, DrivingSession, MaintenanceIntervention, Vehicle } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function StatisticsPage() {
     const { user } = useUser();
     const { firestore } = useFirebase();
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedVehicleId, setSelectedVehicleId] = useState('all');
 
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -34,9 +35,9 @@ export default function StatisticsPage() {
 
         const fetchData = async () => {
             setLoading(true);
+            setError(null);
 
             try {
-                // Fetch all vehicles for the dropdown first
                 const vehiclesQuery = query(collection(firestore, `users/${user.uid}/vehicles`), where('dataoraelimina', '==', null));
                 const vehiclesSnap = await getDocs(vehiclesQuery);
                 const allUserVehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Vehicle);
@@ -45,12 +46,20 @@ export default function StatisticsPage() {
                 const newVehicleMap = new Map(allUserVehicles.map(v => [v.id, v.name || v.licensePlate || 'Sconosciuto']));
                 setVehicleMap(newVehicleMap);
 
-                // Determine which vehicles to fetch stats for
                 const vehiclesToProcess = selectedVehicleId === 'all' 
                     ? allUserVehicles 
                     : allUserVehicles.filter(v => v.id === selectedVehicleId);
                 
-                // Fetch all data in parallel for resilience
+                if (vehiclesToProcess.length === 0) {
+                    setDailyStats([]);
+                    setTotalKm(0);
+                    setTotalHours(0);
+                    setPendingInterventions(0);
+                    setDrivingSessions([]);
+                    setLoading(false);
+                    return;
+                }
+
                 const promises = vehiclesToProcess.map(async (vehicle) => {
                     const dailyStatsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`), where('dataoraelimina', '==', null));
                     const interventionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/maintenanceInterventions`), where('dataoraelimina', '==', null));
@@ -81,7 +90,6 @@ export default function StatisticsPage() {
                         rawInterventions.push(...result.value.interventions);
                         rawDrivingSessions.push(...result.value.sessions);
                     } else {
-                        // If fetching data for a vehicle fails, log it but don't crash the page
                         const vehicleId = vehiclesToProcess[index]?.id || 'unknown';
                         console.error(`Failed to fetch statistics for vehicle ${vehicleId}:`, result.reason);
                         const permissionError = new FirestorePermissionError({
@@ -93,7 +101,6 @@ export default function StatisticsPage() {
                     }
                 });
                 
-                // Sanitize all fetched data to prevent runtime errors from malformed documents
                 const sanitizedDailyStats = rawDailyStats
                     .map(stat => ({
                         date: stat?.date,
@@ -117,8 +124,6 @@ export default function StatisticsPage() {
                     }))
                     .filter(s => s.id && s.vehicleId && s.startTime && !isNaN(new Date(s.startTime).getTime())) as DrivingSession[];
 
-
-                // Aggregate daily stats if 'all' is selected
                 const aggregatedDailyStats = selectedVehicleId === 'all'
                     ? Array.from(sanitizedDailyStats.reduce((map, stat) => {
                         const dateKey = new Date(stat.date).toISOString().split('T')[0];
@@ -134,7 +139,6 @@ export default function StatisticsPage() {
                     : sanitizedDailyStats;
 
                 const sortedAggregatedStats = aggregatedDailyStats.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
                 const last30DaysStats = sortedAggregatedStats.slice(-30);
                 setDailyStats(last30DaysStats);
 
@@ -148,15 +152,16 @@ export default function StatisticsPage() {
                 const sortedSessions = sanitizedSessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
                 setDrivingSessions(sortedSessions.slice(0, 5));
 
-            } catch (error) {
-                // Catch errors from the initial vehicle fetch
+            } catch (e: any) {
+                console.error("An unexpected error occurred while fetching statistics:", e);
+                setError("Si è verificato un errore imprevisto durante il caricamento delle statistiche. Riprova più tardi.");
+                
                 const permissionError = new FirestorePermissionError({
                     path: `users/${user.uid}/vehicles`,
                     operation: 'list',
-                    requestResourceData: { context: 'Failed to fetch vehicles list for statistics.' }
+                    requestResourceData: { context: `Statistics page failed with error: ${e.message}` }
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                console.error("Error fetching initial vehicle list:", error);
             } finally {
                 setLoading(false);
             }
@@ -172,6 +177,30 @@ export default function StatisticsPage() {
                 <p className="mt-4 text-muted-foreground">Caricamento statistiche...</p>
             </div>
         );
+    }
+
+    if (error) {
+        return (
+             <div className="space-y-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                     <div>
+                        <h1 className="font-headline text-3xl font-bold">Statistiche</h1>
+                        <p className="text-muted-foreground">Panoramica del tuo utilizzo e dei tuoi veicoli.</p>
+                    </div>
+                </div>
+                 <Card className="border-destructive">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-destructive">
+                            <AlertTriangle />
+                            Errore nel Caricamento
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>{error}</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
     return (
