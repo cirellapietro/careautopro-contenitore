@@ -1,11 +1,12 @@
-// This file is obsolete. Its logic has been moved to /src/app/dashboard/admin/vehicle-types/view/page.tsx
+import { redirect } from 'next/navigation';
 
 export async function generateStaticParams() {
   // This function is required for static export with dynamic routes.
-  // We return a dummy param to satisfy the build process. The actual data is fetched client-side on the /view page.
+  // We return a dummy param to satisfy the build process.
   return [{ vehicleTypeId: '1' }];
 }
 
-export default function ObsoleteVehicleTypeDetailPage() {
-  return null;
+// This page is obsolete and redirects to the new structure.
+export default function ObsoleteVehicleTypeDetailPage({ params }: { params: { vehicleTypeId: string } }) {
+    redirect(`/dashboard/admin/vehicle-types/view?id=${params.vehicleTypeId}`);
 }
