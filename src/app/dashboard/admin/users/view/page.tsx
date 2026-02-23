@@ -52,7 +52,7 @@ function UserDetailContent() {
     if (user?.role) {
       form.reset({ role: user.role });
     }
-  }, [user, form]);
+  }, [user, form.reset]);
 
   const onSubmit = (values: UserFormValues) => {
     if (!firestore || !userRef) return;

@@ -69,7 +69,7 @@ export default function ProfilePage() {
                 notificationReminderTime: user.notificationReminderTime || 3,
             });
         }
-    }, [user, profileForm, notificationForm]);
+    }, [user, profileForm.reset, notificationForm.reset]);
 
     const onProfileSubmit = (data: z.infer<typeof profileSchema>) => {
         if (!user || !firestore) return;

@@ -58,7 +58,7 @@ export function UpdateMileageDialog({ open, onOpenChange, vehicles }: UpdateMile
             vehicles: vehicles.map(v => ({ id: v.id, name: v.name, currentMileage: v.currentMileage }))
         })
     }
-  }, [vehicles, form, open]);
+  }, [vehicles, open, form.reset]);
   
   const { fields } = useFieldArray({
     control: form.control,

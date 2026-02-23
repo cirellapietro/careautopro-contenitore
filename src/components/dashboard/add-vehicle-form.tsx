@@ -147,7 +147,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       setMonth('');
       setDay('');
     }
-  }, [open, form]);
+  }, [open, form.reset]);
 
   // Combine date parts into the form field
   useEffect(() => {
@@ -159,10 +159,10 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       } else {
         form.setValue('registrationDate', '', { shouldValidate: true });
       }
-    } else if (form.getValues('registrationDate') !== '') {
+    } else {
         form.setValue('registrationDate', '', { shouldValidate: true });
     }
-  }, [year, month, day, form]);
+  }, [year, month, day, form.setValue]);
 
   const selectedTypeId = form.watch('vehicleTypeId');
   const selectedVehicleType = vehicleTypes.find(

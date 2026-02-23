@@ -58,7 +58,7 @@ function VehicleTypeDetailContent() {
         averageAnnualMileage: vehicleType.averageAnnualMileage || 10000,
       });
     }
-  }, [vehicleType, form]);
+  }, [vehicleType, form.reset]);
 
   const onSubmit = (values: VehicleTypeFormValues) => {
     if (!firestore || !user) return;

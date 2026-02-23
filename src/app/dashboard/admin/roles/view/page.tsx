@@ -59,7 +59,7 @@ function RoleDetailContent() {
               description: role.description || ''
           });
       }
-  }, [role, form]);
+  }, [role, form.reset]);
 
 
   const onSubmit = (values: RoleFormValues) => {

@@ -52,7 +52,7 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
       maintenanceHistory: 'Manutenzione regolare effettuata secondo il libretto.',
       drivingStyle: 'moderate',
     })
-  }, [vehicle, form])
+  }, [vehicle, form.reset])
   
   const onFormSubmit = (data: MaintenanceAdviceFormValues) => {
     const formData = new FormData();
