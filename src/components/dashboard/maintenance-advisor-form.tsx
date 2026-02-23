@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useTransition } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -30,6 +30,7 @@ const initialState = {
 
 export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
   const [state, formAction] = useActionState(generateMaintenanceAdvice, initialState);
+  const [isPending, startTransition] = useTransition();
 
   const form = useForm<MaintenanceAdviceFormValues>({
     resolver: zodResolver(MaintenanceAdviceSchema),
@@ -42,8 +43,6 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
     },
   });
 
-  const { isSubmitting } = form.formState;
-
   useEffect(() => {
     form.reset({
       vehicleType: vehicle.type,
@@ -52,7 +51,7 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
       maintenanceHistory: 'Manutenzione regolare effettuata secondo il libretto.',
       drivingStyle: 'moderate',
     })
-  }, [vehicle, form.reset])
+  }, [vehicle, form]);
   
   const onFormSubmit = (data: MaintenanceAdviceFormValues) => {
     const formData = new FormData();
@@ -61,7 +60,9 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
     formData.append('lastMaintenanceDate', data.lastMaintenanceDate);
     formData.append('maintenanceHistory', data.maintenanceHistory);
     formData.append('drivingStyle', data.drivingStyle);
-    formAction(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   };
 
 
@@ -115,8 +116,8 @@ export function MaintenanceAdvisorForm({ vehicle }: { vehicle: Vehicle }) {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isSubmitting} className="w-full">
-                {isSubmitting ? <Loader2 className="animate-spin" /> : "Ottieni Consiglio dall'AI"}
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? <Loader2 className="animate-spin" /> : "Ottieni Consiglio dall'AI"}
               </Button>
             </CardFooter>
           </form>
