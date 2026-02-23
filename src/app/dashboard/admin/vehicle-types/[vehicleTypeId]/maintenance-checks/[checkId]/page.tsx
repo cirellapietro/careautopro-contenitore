@@ -2,8 +2,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-export const dynamic = 'force-static';
-
 export async function generateStaticParams() {
   // This generates a placeholder page during the build process.
   // Client-side navigation will still work for other IDs.
