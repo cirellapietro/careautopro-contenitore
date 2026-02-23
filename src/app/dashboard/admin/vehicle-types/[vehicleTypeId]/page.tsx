@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 export async function generateStaticParams() {
-  return [];
+  // This generates a placeholder page during the build process.
+  // Client-side navigation will still work for other IDs.
+  return [{ vehicleTypeId: '1' }];
 }
 
 export default function VehicleTypeDetailPage({ params }: { params: { vehicleTypeId: string } }) {
