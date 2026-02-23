@@ -1,11 +1,10 @@
-import PageContent from './page-content';
 
-export async function generateStaticParams() {
-  // This generates a placeholder page during the build process.
-  // Client-side navigation will still work for other IDs.
+export function generateStaticParams() {
+  // This generates a placeholder page during the build process for static export.
   return [{ vehicleTypeId: '1' }];
 }
 
-export default function VehicleTypeDetailPage({ params }: { params: { vehicleTypeId: string } }) {
-  return <PageContent vehicleTypeId={params.vehicleTypeId} />;
-}
+// Re-export the client component with the params.
+// This allows the page to be a server component for `generateStaticParams`
+// while the content is a client component that receives `params`.
+export { default } from './page-content';

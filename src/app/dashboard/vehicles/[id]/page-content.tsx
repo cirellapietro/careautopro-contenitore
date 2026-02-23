@@ -81,7 +81,8 @@ function InterventionsList({ vehicleId }: { vehicleId: string }) {
 }
 
 
-export default function PageContent({ vehicleId }: { vehicleId: string }) {
+export default function PageContent({ params }: { params: { id: string } }) {
+  const vehicleId = params.id;
   const { user } = useUser();
   const { firestore } = useFirebase();
 

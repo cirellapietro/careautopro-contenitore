@@ -24,7 +24,8 @@ const vehicleTypeSchema = z.object({
 });
 type VehicleTypeFormValues = z.infer<typeof vehicleTypeSchema>;
 
-export default function PageContent({ vehicleTypeId }: { vehicleTypeId: string }) {
+export default function PageContent({ params }: { params: { vehicleTypeId: string } }) {
+  const vehicleTypeId = params.vehicleTypeId;
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();

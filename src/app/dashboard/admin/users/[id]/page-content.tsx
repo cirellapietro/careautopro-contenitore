@@ -27,7 +27,8 @@ const userSchema = z.object({
 });
 type UserFormValues = z.infer<typeof userSchema>;
 
-export default function PageContent({ userId }: { userId: string }) {
+export default function PageContent({ params }: { params: { id: string } }) {
+  const userId = params.id;
   const { user: adminUser, loading: adminUserLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();

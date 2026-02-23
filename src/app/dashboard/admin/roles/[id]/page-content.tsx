@@ -25,7 +25,8 @@ const roleSchema = z.object({
 });
 type RoleFormValues = z.infer<typeof roleSchema>;
 
-export default function PageContent({ roleId }: { roleId: string }) {
+export default function PageContent({ params }: { params: { id: string } }) {
+  const roleId = params.id;
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();
