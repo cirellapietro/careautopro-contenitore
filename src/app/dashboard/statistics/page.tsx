@@ -36,45 +36,70 @@ export default function StatisticsPage() {
             setLoading(true);
 
             try {
-                // Fetch all vehicles for the dropdown
+                // Fetch all vehicles for the dropdown first
                 const vehiclesQuery = query(collection(firestore, `users/${user.uid}/vehicles`), where('dataoraelimina', '==', null));
                 const vehiclesSnap = await getDocs(vehiclesQuery);
                 const allUserVehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Vehicle);
                 setVehicles(allUserVehicles);
                 
-                const newVehicleMap = new Map(allUserVehicles.map(v => [v.id, v.name || v.licensePlate || 'Veicolo Sconosciuto']));
+                const newVehicleMap = new Map(allUserVehicles.map(v => [v.id, v.name || v.licensePlate || 'Sconosciuto']));
                 setVehicleMap(newVehicleMap);
 
                 // Determine which vehicles to fetch stats for
                 const vehiclesToProcess = selectedVehicleId === 'all' 
                     ? allUserVehicles 
                     : allUserVehicles.filter(v => v.id === selectedVehicleId);
+                
+                // Fetch all data in parallel for resilience
+                const promises = vehiclesToProcess.map(async (vehicle) => {
+                    const dailyStatsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`), where('dataoraelimina', '==', null));
+                    const interventionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/maintenanceInterventions`), where('dataoraelimina', '==', null));
+                    const sessionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/trackingSessions`), where('dataoraelimina', '==', null));
+
+                    const [dailyStatsSnap, interventionsSnap, sessionsSnap] = await Promise.all([
+                        getDocs(dailyStatsQuery),
+                        getDocs(interventionsQuery),
+                        getDocs(sessionsQuery),
+                    ]);
+
+                    return {
+                        dailyStats: dailyStatsSnap.docs.map(doc => doc.data()),
+                        interventions: interventionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+                        sessions: sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+                    };
+                });
+
+                const results = await Promise.allSettled(promises);
 
                 let rawDailyStats: DocumentData[] = [];
                 let rawInterventions: DocumentData[] = [];
                 let rawDrivingSessions: DocumentData[] = [];
 
-                for (const vehicle of vehiclesToProcess) {
-                    const dailyStatsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`), where('dataoraelimina', '==', null));
-                    const dailyStatsSnap = await getDocs(dailyStatsQuery);
-                    dailyStatsSnap.forEach(doc => rawDailyStats.push(doc.data()));
-
-                    const interventionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/maintenanceInterventions`), where('dataoraelimina', '==', null));
-                    const interventionsSnap = await getDocs(interventionsQuery);
-                    interventionsSnap.forEach(doc => rawInterventions.push({ id: doc.id, ...doc.data() }));
-
-                    const sessionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/trackingSessions`), where('dataoraelimina', '==', null));
-                    const sessionsSnap = await getDocs(sessionsQuery);
-                    sessionsSnap.forEach(doc => rawDrivingSessions.push({ id: doc.id, ...doc.data() }));
-                }
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        rawDailyStats.push(...result.value.dailyStats);
+                        rawInterventions.push(...result.value.interventions);
+                        rawDrivingSessions.push(...result.value.sessions);
+                    } else {
+                        // If fetching data for a vehicle fails, log it but don't crash the page
+                        const vehicleId = vehiclesToProcess[index]?.id || 'unknown';
+                        console.error(`Failed to fetch statistics for vehicle ${vehicleId}:`, result.reason);
+                        const permissionError = new FirestorePermissionError({
+                            path: `users/${user.uid}/vehicles/${vehicleId}`,
+                            operation: 'list',
+                            requestResourceData: { context: `Failed to fetch sub-collection data for vehicle.` }
+                        });
+                        errorEmitter.emit('permission-error', permissionError);
+                    }
+                });
                 
                 // Sanitize all fetched data to prevent runtime errors from malformed documents
                 const sanitizedDailyStats = rawDailyStats
                     .map(stat => ({
-                        date: stat.date,
-                        distance: Number(stat.distance) || 0,
-                        duration: Number(stat.duration) || 0,
-                        vehicleId: stat.vehicleId,
+                        date: stat?.date,
+                        distance: Number(stat?.distance) || 0,
+                        duration: Number(stat?.duration) || 0,
+                        vehicleId: stat?.vehicleId,
                     }))
                     .filter(stat => stat.date && !isNaN(new Date(stat.date).getTime())) as DailyStat[];
                 
@@ -83,12 +108,12 @@ export default function StatisticsPage() {
                     
                 const sanitizedSessions = rawDrivingSessions
                     .map(s => ({
-                        id: s.id,
-                        vehicleId: s.vehicleId,
-                        startTime: s.startTime,
-                        distance: Number(s.distance) || 0,
-                        duration: Number(s.duration) || 0,
-                        dataoraelimina: s.dataoraelimina
+                        id: s?.id,
+                        vehicleId: s?.vehicleId,
+                        startTime: s?.startTime,
+                        distance: Number(s?.distance) || 0,
+                        duration: Number(s?.duration) || 0,
+                        dataoraelimina: s?.dataoraelimina
                     }))
                     .filter(s => s.id && s.vehicleId && s.startTime && !isNaN(new Date(s.startTime).getTime())) as DrivingSession[];
 
@@ -124,13 +149,14 @@ export default function StatisticsPage() {
                 setDrivingSessions(sortedSessions.slice(0, 5));
 
             } catch (error) {
+                // Catch errors from the initial vehicle fetch
                 const permissionError = new FirestorePermissionError({
-                    path: `users/${user.uid}/ (sub-collections)`,
+                    path: `users/${user.uid}/vehicles`,
                     operation: 'list',
-                    requestResourceData: { context: 'Failed to fetch statistics data. Check permissions for vehicles and its sub-collections.' }
+                    requestResourceData: { context: 'Failed to fetch vehicles list for statistics.' }
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                console.error("Error fetching statistics:", error);
+                console.error("Error fetching initial vehicle list:", error);
             } finally {
                 setLoading(false);
             }
@@ -165,7 +191,7 @@ export default function StatisticsPage() {
                             <SelectItem value="all">Tutti i veicoli</SelectItem>
                             {vehicles.map((vehicle) => (
                                 <SelectItem key={vehicle.id} value={vehicle.id}>
-                                    {vehicle.name || vehicle.licensePlate || 'Veicolo Sconosciuto'}
+                                    {vehicle.name || vehicle.licensePlate || 'Sconosciuto'}
                                 </SelectItem>
                             ))}
                           </SelectContent>
