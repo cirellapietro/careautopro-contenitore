@@ -1,6 +1,3 @@
-'use client';
-
-import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from 'next/link';
@@ -10,7 +7,7 @@ export async function generateStaticParams() {
 }
 
 export default function RoleDetailPage({ params }: { params: { id: string } }) {
-  const id = params.id;
+  const { id } = params;
 
   if (!id) {
     return (
