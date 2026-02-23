@@ -1,8 +1,0 @@
-{
-	"appId": "com.careautopro.app",
-	"appName": "CareAutoPro",
-	"webDir": "out",
-	"server": {
-		"androidScheme": "https"
-	}
-}
