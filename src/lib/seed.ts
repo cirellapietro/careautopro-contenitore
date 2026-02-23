@@ -9,7 +9,7 @@ import {
   query,
   limit,
 } from 'firebase/firestore';
-import type { MaintenanceCheck, VehicleType } from './types';
+import type { MaintenanceCheck, Role, VehicleType } from './types';
 
 // Data for global collections
 const vehicleTypeData: Omit<VehicleType, 'id' | 'dataoraelimina'>[] = [
@@ -17,6 +17,11 @@ const vehicleTypeData: Omit<VehicleType, 'id' | 'dataoraelimina'>[] = [
   { name: 'Ibrida', averageAnnualMileage: 12000 },
   { name: 'GPL', averageAnnualMileage: 15000 },
   { name: 'Metano', averageAnnualMileage: 15000 },
+];
+
+const roleData: Omit<Role, 'id' | 'dataoraelimina'>[] = [
+    { name: 'Amministratore', description: 'Accesso completo a tutte le funzionalità dell\'applicazione.' },
+    { name: 'Utente', description: 'Accesso limitato alla gestione dei propri veicoli e dati.' },
 ];
 
 // Common checks for all vehicle types
@@ -61,8 +66,8 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
 
 
 /**
- * Seeds the global vehicleTypes collection.
- * It checks if the data already exists to avoid overwriting.
+ * Seeds the global collections like 'vehicleTypes' and 'roles'.
+ * It checks if data already exists to avoid overwriting.
  * This function is designed to be safe to run by an admin; it will only write data
  * if the user has appropriate permissions.
  * It returns an object indicating success or failure.
@@ -70,6 +75,8 @@ const maintenanceCheckData: Record<string, Omit<MaintenanceCheck, 'id' | 'vehicl
 export const seedGlobalData = async (firestore: Firestore): Promise<{ success: boolean, message: string }> => {
     const batch = writeBatch(firestore);
     let needsSeeding = false;
+    let vtSeeded = false;
+    let rolesSeeded = false;
 
     // --- Seed Vehicle Types and Maintenance Checks ---
     try {
@@ -77,6 +84,7 @@ export const seedGlobalData = async (firestore: Firestore): Promise<{ success: b
         const vtSnapshot = await getDocs(query(vehicleTypesRef, limit(1)));
         if (vtSnapshot.empty) {
             needsSeeding = true;
+            vtSeeded = true;
             vehicleTypeData.forEach(vt => {
                 const vtId = vt.name.toLowerCase();
                 const vtRef = doc(firestore, 'vehicleTypes', vtId);
@@ -97,18 +105,40 @@ export const seedGlobalData = async (firestore: Firestore): Promise<{ success: b
             });
         }
     } catch (error: any) {
-        // This read should be public. If it fails, something is wrong with the rules or connection.
         return { success: false, message: `Errore durante il controllo dei tipi veicolo: ${error.message}` };
+    }
+
+    // --- Seed Roles ---
+    try {
+        const rolesRef = collection(firestore, 'roles');
+        const rolesSnapshot = await getDocs(query(rolesRef, limit(1)));
+        if (rolesSnapshot.empty) {
+            needsSeeding = true;
+            rolesSeeded = true;
+            roleData.forEach(role => {
+                const roleId = role.name.toLowerCase();
+                const roleRef = doc(firestore, 'roles', roleId);
+                batch.set(roleRef, { id: roleId, ...role, dataoraelimina: null });
+            });
+        }
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            return { success: false, message: `Permesso negato durante il controllo dei ruoli. Solo gli amministratori possono eseguire questa azione.` };
+        }
+        return { success: false, message: `Errore durante il controllo dei ruoli: ${error.message}` };
     }
     
     // --- Commit if needed ---
     if (!needsSeeding) {
-        return { success: true, message: 'Dati dei tipi veicolo già presenti. Nessuna operazione eseguita.' };
+        return { success: true, message: 'Dati globali già presenti. Nessuna operazione eseguita.' };
     }
 
     try {
         await batch.commit();
-        return { success: true, message: 'Tipi veicolo e controlli standard creati con successo!' };
+        const seededParts = [];
+        if (vtSeeded) seededParts.push('Tipi veicolo');
+        if (rolesSeeded) seededParts.push('Ruoli');
+        return { success: true, message: `${seededParts.join(' e ')} creati con successo!` };
     } catch (error: any) {
         if (error.code === 'permission-denied') {
              return { success: false, message: 'Permesso negato. Solo gli amministratori possono creare i dati globali.' };
