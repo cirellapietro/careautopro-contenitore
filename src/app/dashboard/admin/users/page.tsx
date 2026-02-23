@@ -18,14 +18,14 @@ export default function AdminUsersPage() {
   const router = useRouter();
   const usersQuery = useMemo(() => (firestore && currentUser?.role === 'Amministratore') ? query(collection(firestore, 'users')) : null, [firestore, currentUser]);
   const { data: users, isLoading } = useCollection<User>(usersQuery);
-  if (userLoading || isLoading) return <Loader2 className="animate-spin" />;
+  if (userLoading || isLoading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Utenti</h1>
       <Card><CardContent>
         <Table><TableBody>
           {users?.map(u => (
-            <TableRow key={u.id} onClick={() => router.push(`/dashboard/admin/users/${u.id}`)}>
+            <TableRow key={u.id} onClick={() => router.push(`/dashboard/admin/users/view?id=${u.id}`)}>
               <TableCell>{u.email}</TableCell>
               <TableCell>{u.role}</TableCell>
               <TableCell className="text-right"><Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button></TableCell>

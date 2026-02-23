@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useDoc, useCollection } from '@/firebase';
@@ -80,20 +81,21 @@ function InterventionsList({ vehicleId }: { vehicleId: string }) {
   );
 }
 
+function VehicleDetailContent() {
+  const searchParams = useSearchParams();
+  const vehicleId = searchParams.get('id');
 
-export default function PageContent({ params }: { params: { id: string } }) {
-  const vehicleId = params.id;
   const { user } = useUser();
   const { firestore } = useFirebase();
 
   const vehicleRef = useMemo(() => {
-    if (!user || !firestore) return null;
+    if (!user || !firestore || !vehicleId) return null;
     return doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
   }, [user, firestore, vehicleId]);
 
   const { data: vehicle, isLoading } = useDoc<Vehicle>(vehicleRef);
 
-  if (isLoading || !user) {
+  if (isLoading || !user || !vehicleId) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -159,4 +161,13 @@ export default function PageContent({ params }: { params: { id: string } }) {
       <MaintenanceAdvisorForm vehicle={vehicle} />
     </div>
   );
+}
+
+
+export default function PageContent() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <VehicleDetailContent />
+    </Suspense>
+  )
 }

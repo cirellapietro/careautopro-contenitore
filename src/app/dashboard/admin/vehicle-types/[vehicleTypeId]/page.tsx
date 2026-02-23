@@ -1,9 +1,9 @@
 import PageContent from './page-content';
 
 export async function generateStaticParams() {
-  return [{ vehicleTypeId: '1' }];
+  return [{ vehicleTypeId: 'view' }];
 }
 
-export default function VehicleTypeDetailPage({ params }: { params: { vehicleTypeId: string } }) {
-  return <PageContent params={params} />;
+export default function VehicleTypeDetailPage() {
+  return <PageContent />;
 }

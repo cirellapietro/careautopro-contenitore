@@ -41,12 +41,12 @@ export default function AdminRolesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Ruoli</h1>
-        <Button onClick={() => router.push('/dashboard/admin/roles/new')}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi</Button>
+        <Button onClick={() => router.push('/dashboard/admin/roles/view?id=new')}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi</Button>
       </div>
       <Card><CardContent>
         <Table><TableBody>
           {roles?.map(role => (
-            <TableRow key={role.id} onClick={() => router.push(`/dashboard/admin/roles/${role.id}`)}>
+            <TableRow key={role.id} onClick={() => router.push(`/dashboard/admin/roles/view?id=${role.id}`)}>
               <TableCell>{role.name}</TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
@@ -55,6 +55,20 @@ export default function AdminRolesPage() {
             </TableRow>
           ))}</TableBody></Table>
       </CardContent></Card>
+       <AlertDialog open={!!roleToDelete} onOpenChange={() => setRoleToDelete(null)}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Questa azione contrassegnerà il ruolo <span className="font-bold">{roleToDelete?.name}</span> come eliminato.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Elimina</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-                }
+}

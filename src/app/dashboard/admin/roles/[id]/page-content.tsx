@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import type { Role } from '@/lib/types';
@@ -25,8 +25,10 @@ const roleSchema = z.object({
 });
 type RoleFormValues = z.infer<typeof roleSchema>;
 
-export default function PageContent({ params }: { params: { id: string } }) {
-  const roleId = params.id;
+function RoleDetailContent() {
+  const searchParams = useSearchParams();
+  const roleId = searchParams.get('id');
+
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();
@@ -66,15 +68,14 @@ export default function PageContent({ params }: { params: { id: string } }) {
 
     if (isNew) {
         const rolesCollection = collection(firestore, 'roles');
-        const newDocRef = doc(rolesCollection);
         const dataToCreate = {
             ...values,
-            id: newDocRef.id,
             dataoraelimina: null,
         };
         
         addDoc(rolesCollection, dataToCreate)
-            .then(() => {
+            .then((newDocRef) => {
+                updateDoc(newDocRef, { id: newDocRef.id });
                 toast({ title: 'Successo', description: 'Ruolo creato.' });
                 router.push('/dashboard/admin/roles');
             })
@@ -177,5 +178,14 @@ export default function PageContent({ params }: { params: { id: string } }) {
             </Form>
         </Card>
     </div>
+  );
+}
+
+
+export default function PageContent() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <RoleDetailContent />
+    </Suspense>
   );
 }

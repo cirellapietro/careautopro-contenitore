@@ -13,6 +13,8 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
+  addDoc
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -179,18 +181,15 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     if (!user || !firestore || !selectedVehicleType) return;
     setIsSubmitting(true);
 
-    const newVehicleRef = doc(collection(firestore, `users/${user.uid}/vehicles`));
     const nameParts = values.name.split(' ');
     const make = nameParts[0] || '';
     const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim() || '';
 
     try {
-        const firstBatch = writeBatch(firestore);
         const mileage = values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
 
         const newVehicleData = {
           ...values,
-          id: newVehicleRef.id,
           userId: user.uid,
           make,
           model,
@@ -200,7 +199,11 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
           createdAt: new Date().toISOString(),
           dataoraelimina: null,
         };
-        firstBatch.set(newVehicleRef, newVehicleData);
+
+        const newVehicleRef = await addDoc(collection(firestore, `users/${user.uid}/vehicles`), newVehicleData);
+        await updateDoc(newVehicleRef, { id: newVehicleRef.id });
+
+        const firstBatch = writeBatch(firestore);
 
         const checksCollectionRef = collection(firestore, `vehicleTypes/${values.vehicleTypeId}/maintenanceChecks`);
         const checksQuery = query(checksCollectionRef, where('dataoraelimina', '==', null));
@@ -308,7 +311,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                 <DialogFooter className="sm:justify-start gap-2 pt-4">
                     <Button
                         onClick={() => {
-                            router.push(`/dashboard/vehicles/${newVehicleId}`);
+                            router.push(`/dashboard/vehicles/view?id=${newVehicleId}`);
                             handleClose();
                         }}
                     >

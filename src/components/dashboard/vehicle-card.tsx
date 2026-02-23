@@ -49,7 +49,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
       </CardContent>
       <CardFooter className="p-6 pt-0">
         <Button asChild className="w-full">
-          <Link href={`/dashboard/vehicles/${vehicle.id}`}>
+          <Link href={`/dashboard/vehicles/view?id=${vehicle.id}`}>
             Gestisci Veicolo <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useUser } from '@/firebase/auth/use-user';
@@ -10,13 +10,11 @@ import type { User } from '@/lib/types';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,11 +25,12 @@ const userSchema = z.object({
 });
 type UserFormValues = z.infer<typeof userSchema>;
 
-export default function PageContent({ params }: { params: { id: string } }) {
-  const userId = params.id;
+function UserDetailContent() {
+  const searchParams = useSearchParams();
+  const userId = searchParams.get('id');
+
   const { user: adminUser, loading: adminUserLoading } = useUser();
   const { firestore } = useFirebase();
-  const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -144,5 +143,14 @@ export default function PageContent({ params }: { params: { id: string } }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+
+export default function PageContent() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <UserDetailContent />
+    </Suspense>
   );
 }

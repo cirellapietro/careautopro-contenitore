@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { useUser } from '@/firebase/auth/use-user';
@@ -24,8 +24,10 @@ const vehicleTypeSchema = z.object({
 });
 type VehicleTypeFormValues = z.infer<typeof vehicleTypeSchema>;
 
-export default function PageContent({ params }: { params: { vehicleTypeId: string } }) {
-  const vehicleTypeId = params.vehicleTypeId;
+function VehicleTypeDetailContent() {
+  const searchParams = useSearchParams();
+  const vehicleTypeId = searchParams.get('id');
+
   const { user, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();
@@ -64,15 +66,14 @@ export default function PageContent({ params }: { params: { vehicleTypeId: strin
 
     if (isNew) {
       const vtCollection = collection(firestore, 'vehicleTypes');
-      const newDocRef = doc(vtCollection, values.name.toLowerCase().replace(/\s+/g, '-'));
       const dataToCreate = {
         ...values,
-        id: newDocRef.id,
         dataoraelimina: null,
       };
       
       addDoc(vtCollection, dataToCreate)
-        .then(() => {
+        .then((newDocRef) => {
+          updateDoc(newDocRef, { id: newDocRef.id });
           toast({ title: 'Successo', description: 'Tipo veicolo creato.' });
           router.push('/dashboard/admin/vehicle-types');
         })
@@ -171,4 +172,13 @@ export default function PageContent({ params }: { params: { vehicleTypeId: strin
       </Card>
     </div>
   );
+}
+
+
+export default function PageContent() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <VehicleTypeDetailContent />
+    </Suspense>
+  )
 }

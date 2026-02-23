@@ -95,7 +95,7 @@ export default function AdminVehicleTypesPage() {
                   <h1 className="font-headline text-3xl font-bold">Gestione Tipi Veicolo</h1>
                   <p className="text-muted-foreground">Gestisci i tipi di veicolo e i relativi piani di manutenzione.</p>
               </div>
-              <Button onClick={() => router.push('/dashboard/admin/vehicle-types/new')}>
+              <Button onClick={() => router.push('/dashboard/admin/vehicle-types/view?id=new')}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Tipo
               </Button>
           </div>
@@ -125,12 +125,12 @@ export default function AdminVehicleTypesPage() {
                     <TableRow 
                       key={vt.id}
                       className={cn("cursor-pointer", vt.dataoraelimina && 'text-muted-foreground opacity-50')}
-                      onClick={() => !vt.dataoraelimina && router.push(`/dashboard/admin/vehicle-types/${vt.id}`)}
+                      onClick={() => !vt.dataoraelimina && router.push(`/dashboard/admin/vehicle-types/view?id=${vt.id}`)}
                     >
                       <TableCell className="font-medium">{vt.name}</TableCell>
                       <TableCell>{vt.averageAnnualMileage.toLocaleString('it-IT')} km</TableCell>
                       <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/vehicle-types/${vt.id}`)}} disabled={!!vt.dataoraelimina}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/admin/vehicle-types/view?id=${vt.id}`)}} disabled={!!vt.dataoraelimina}>
                               <Pencil className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setVehicleTypeToDelete(vt); }} disabled={!!vt.dataoraelimina}>
