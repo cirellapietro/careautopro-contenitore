@@ -72,7 +72,7 @@ function InterventionsList({ vehicleId }: { vehicleId: string }) {
                 </div>
             </TableCell>
             <TableCell>
-              {item.scheduledDate ? format(new Date(item.scheduledDate), 'dd MMM yyyy', { locale: it }) : 'N/D'}
+              {item.scheduledDate && !isNaN(new Date(item.scheduledDate).getTime()) ? format(new Date(item.scheduledDate), 'dd MMM yyyy', { locale: it }) : 'N/D'}
             </TableCell>
           </TableRow>
         ))}
@@ -115,6 +115,16 @@ function VehicleDetailContent() {
       </div>
     );
   }
+  
+  const registrationDateFormatted = vehicle.registrationDate && !isNaN(new Date(vehicle.registrationDate).getTime()) 
+    ? format(new Date(vehicle.registrationDate), 'dd MMMM yyyy', { locale: it }) 
+    : 'N/D';
+    
+  const lastMaintenanceDateFormatted = vehicle.lastMaintenanceDate && !isNaN(new Date(vehicle.lastMaintenanceDate).getTime())
+    ? format(new Date(vehicle.lastMaintenanceDate), 'dd MMMM yyyy', { locale: it })
+    : 'N/D';
+    
+  const currentMileageFormatted = (typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0).toLocaleString('it-IT');
 
   return (
     <div className="space-y-8">
@@ -125,7 +135,7 @@ function VehicleDetailContent() {
       </div>
       <div className="space-y-2">
         <h1 className="font-headline text-3xl font-bold">{vehicle.name}</h1>
-        <p className="text-muted-foreground">{vehicle.make} {vehicle.model} - {new Date(vehicle.registrationDate).getFullYear()}</p>
+        <p className="text-muted-foreground">{vehicle.make} {vehicle.model} - {vehicle.registrationDate ? new Date(vehicle.registrationDate).getFullYear() : 'N/D'}</p>
       </div>
       
       <Card>
@@ -139,11 +149,11 @@ function VehicleDetailContent() {
             <dt className="text-muted-foreground">Tipo</dt>
             <dd>{vehicle.type}</dd>
             <dt className="text-muted-foreground">Immatricolazione</dt>
-            <dd>{format(new Date(vehicle.registrationDate), 'dd MMMM yyyy', { locale: it })}</dd>
+            <dd>{registrationDateFormatted}</dd>
             <dt className="text-muted-foreground">Chilometraggio</dt>
-            <dd>{vehicle.currentMileage.toLocaleString('it-IT')} km</dd>
+            <dd>{currentMileageFormatted} km</dd>
              <dt className="text-muted-foreground">Ultima Manutenzione</dt>
-            <dd>{format(new Date(vehicle.lastMaintenanceDate), 'dd MMMM yyyy', { locale: it })}</dd>
+            <dd>{lastMaintenanceDateFormatted}</dd>
           </dl>
         </CardContent>
       </Card>

@@ -29,7 +29,15 @@ const VehicleIcon = ({ type, className }: { type: string, className?: string }) 
 
 
 export function VehicleCard({ vehicle }: VehicleCardProps) {
-  const registrationYear = vehicle.registrationDate ? new Date(vehicle.registrationDate).getFullYear() : 'N/D';
+  const registrationYear = vehicle.registrationDate && !isNaN(new Date(vehicle.registrationDate).getTime()) 
+    ? new Date(vehicle.registrationDate).getFullYear() 
+    : 'N/D';
+
+  const lastMaintenance = vehicle.lastMaintenanceDate && !isNaN(new Date(vehicle.lastMaintenanceDate).getTime())
+    ? new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')
+    : 'N/D';
+
+  const mileage = typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0;
 
   return (
     <Card className="flex flex-col">
@@ -43,8 +51,8 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
       </CardHeader>
       <CardContent className="flex-1 p-6 pt-0">
         <div className="border-t pt-4 text-sm text-muted-foreground">
-          <p>Chilometraggio: <span className="font-semibold text-foreground">{vehicle.currentMileage.toLocaleString('it-IT')} km</span></p>
-          <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')}</span></p>
+          <p>Chilometraggio: <span className="font-semibold text-foreground">{mileage.toLocaleString('it-IT')} km</span></p>
+          <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
         </div>
       </CardContent>
       <CardFooter className="p-6 pt-0">
