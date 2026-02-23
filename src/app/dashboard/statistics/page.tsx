@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import type { DailyStat, DrivingSession, MaintenanceIntervention, Vehicle } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
@@ -36,13 +36,13 @@ export default function StatisticsPage() {
             setLoading(true);
 
             try {
-                // Fetch all vehicles for the dropdown first, and to know which ones to process
+                // Fetch all vehicles for the dropdown
                 const vehiclesQuery = query(collection(firestore, `users/${user.uid}/vehicles`), where('dataoraelimina', '==', null));
                 const vehiclesSnap = await getDocs(vehiclesQuery);
                 const allUserVehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Vehicle);
                 setVehicles(allUserVehicles);
                 
-                const newVehicleMap = new Map(allUserVehicles.map(v => [v.id, v.name || 'Veicolo senza nome']));
+                const newVehicleMap = new Map(allUserVehicles.map(v => [v.id, v.name || v.licensePlate || 'Veicolo Sconosciuto']));
                 setVehicleMap(newVehicleMap);
 
                 // Determine which vehicles to fetch stats for
@@ -50,63 +50,77 @@ export default function StatisticsPage() {
                     ? allUserVehicles 
                     : allUserVehicles.filter(v => v.id === selectedVehicleId);
 
-                let allDailyStats: DailyStat[] = [];
-                let allInterventions: MaintenanceIntervention[] = [];
-                let allDrivingSessions: DrivingSession[] = [];
+                let rawDailyStats: DocumentData[] = [];
+                let rawInterventions: DocumentData[] = [];
+                let rawDrivingSessions: DocumentData[] = [];
 
                 for (const vehicle of vehiclesToProcess) {
                     const dailyStatsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/dailyStatistics`), where('dataoraelimina', '==', null));
                     const dailyStatsSnap = await getDocs(dailyStatsQuery);
-                    dailyStatsSnap.forEach(doc => {
-                        allDailyStats.push(doc.data() as DailyStat);
-                    });
+                    dailyStatsSnap.forEach(doc => rawDailyStats.push(doc.data()));
 
                     const interventionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/maintenanceInterventions`), where('dataoraelimina', '==', null));
                     const interventionsSnap = await getDocs(interventionsQuery);
-                    interventionsSnap.forEach(doc => {
-                        allInterventions.push({ id: doc.id, ...doc.data() } as MaintenanceIntervention);
-                    });
+                    interventionsSnap.forEach(doc => rawInterventions.push({ id: doc.id, ...doc.data() }));
 
                     const sessionsQuery = query(collection(firestore, `users/${user.uid}/vehicles/${vehicle.id}/trackingSessions`), where('dataoraelimina', '==', null));
                     const sessionsSnap = await getDocs(sessionsQuery);
-                    sessionsSnap.forEach(doc => {
-                        allDrivingSessions.push({ id: doc.id, ...doc.data() } as DrivingSession);
-                    });
+                    sessionsSnap.forEach(doc => rawDrivingSessions.push({ id: doc.id, ...doc.data() }));
                 }
                 
-                // Filter out invalid data before processing
-                const validDailyStats = allDailyStats.filter(stat => stat && stat.date && !isNaN(new Date(stat.date).getTime()));
-                const validInterventions = allInterventions.filter(i => i && i.status);
-                const validSessions = allDrivingSessions.filter(s => s && s.startTime && !isNaN(new Date(s.startTime).getTime()));
+                // Sanitize all fetched data to prevent runtime errors from malformed documents
+                const sanitizedDailyStats = rawDailyStats
+                    .map(stat => ({
+                        date: stat.date,
+                        distance: Number(stat.distance) || 0,
+                        duration: Number(stat.duration) || 0,
+                        vehicleId: stat.vehicleId,
+                    }))
+                    .filter(stat => stat.date && !isNaN(new Date(stat.date).getTime())) as DailyStat[];
+                
+                const sanitizedInterventions = rawInterventions
+                    .filter(i => i && i.status) as MaintenanceIntervention[];
+                    
+                const sanitizedSessions = rawDrivingSessions
+                    .map(s => ({
+                        id: s.id,
+                        vehicleId: s.vehicleId,
+                        startTime: s.startTime,
+                        distance: Number(s.distance) || 0,
+                        duration: Number(s.duration) || 0,
+                        dataoraelimina: s.dataoraelimina
+                    }))
+                    .filter(s => s.id && s.vehicleId && s.startTime && !isNaN(new Date(s.startTime).getTime())) as DrivingSession[];
+
 
                 // Aggregate daily stats if 'all' is selected
                 const aggregatedDailyStats = selectedVehicleId === 'all'
-                    ? Array.from(validDailyStats.reduce((map, stat) => {
-                        const dateKey = new Date(stat.date).toISOString().split('T')[0]; // Normalize date key
+                    ? Array.from(sanitizedDailyStats.reduce((map, stat) => {
+                        const dateKey = new Date(stat.date).toISOString().split('T')[0];
                         const existing = map.get(dateKey);
                         if (existing) {
-                            existing.distance += (Number(stat.distance) || 0);
-                            existing.duration += (Number(stat.duration) || 0);
+                            existing.distance += stat.distance;
+                            existing.duration += stat.duration;
                         } else {
-                            map.set(dateKey, { ...stat, date: dateKey, distance: (Number(stat.distance) || 0), duration: (Number(stat.duration) || 0) });
+                            map.set(dateKey, { ...stat, date: dateKey });
                         }
                         return map;
                       }, new Map<string, DailyStat>()).values())
-                    : validDailyStats;
+                    : sanitizedDailyStats;
 
                 const sortedAggregatedStats = aggregatedDailyStats.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
                 const last30DaysStats = sortedAggregatedStats.slice(-30);
                 setDailyStats(last30DaysStats);
 
-                const totalKm = last30DaysStats.reduce((acc, stat) => acc + (Number(stat.distance) || 0), 0);
-                const totalMinutes = last30DaysStats.reduce((acc, stat) => acc + (Number(stat.duration) || 0), 0);
+                const totalKm = last30DaysStats.reduce((acc, stat) => acc + stat.distance, 0);
+                const totalMinutes = last30DaysStats.reduce((acc, stat) => acc + stat.duration, 0);
                 
                 setTotalKm(totalKm);
                 setTotalHours(totalMinutes / 60);
-                setPendingInterventions(validInterventions.filter(i => i.status === 'Richiesto').length);
+                setPendingInterventions(sanitizedInterventions.filter(i => i.status === 'Richiesto').length);
                 
-                const sortedSessions = validSessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+                const sortedSessions = sanitizedSessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
                 setDrivingSessions(sortedSessions.slice(0, 5));
 
             } catch (error) {
@@ -125,9 +139,9 @@ export default function StatisticsPage() {
         fetchData();
     }, [user, firestore, selectedVehicleId]);
 
-    if (loading && vehicles.length === 0) {
+    if (loading) {
         return (
-            <div className="flex min-h-screen w-full flex-col items-center justify-center">
+            <div className="flex h-[60vh] w-full flex-col items-center justify-center">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="mt-4 text-muted-foreground">Caricamento statistiche...</p>
             </div>
@@ -142,9 +156,8 @@ export default function StatisticsPage() {
                     <p className="text-muted-foreground">Panoramica del tuo utilizzo e dei tuoi veicoli.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {loading && <Loader2 className="h-5 w-5 animate-spin" />}
                     <div className="w-full md:w-64">
-                        <Select onValueChange={setSelectedVehicleId} defaultValue="all" disabled={loading}>
+                        <Select onValueChange={setSelectedVehicleId} defaultValue="all">
                           <SelectTrigger>
                             <SelectValue placeholder="Seleziona un veicolo" />
                           </SelectTrigger>
@@ -152,7 +165,7 @@ export default function StatisticsPage() {
                             <SelectItem value="all">Tutti i veicoli</SelectItem>
                             {vehicles.map((vehicle) => (
                                 <SelectItem key={vehicle.id} value={vehicle.id}>
-                                    {vehicle.name || 'Veicolo senza nome'}
+                                    {vehicle.name || vehicle.licensePlate || 'Veicolo Sconosciuto'}
                                 </SelectItem>
                             ))}
                           </SelectContent>
@@ -191,8 +204,8 @@ export default function StatisticsPage() {
                                         <Badge variant="outline">{vehicleMap.get(session.vehicleId) || 'Sconosciuto'}</Badge>
                                     </TableCell>
                                     <TableCell>{session.startTime ? new Date(session.startTime).toLocaleString('it-IT') : 'N/D'}</TableCell>
-                                    <TableCell>{session.distance || 0} km</TableCell>
-                                    <TableCell>{session.duration || 0} min</TableCell>
+                                    <TableCell>{session.distance} km</TableCell>
+                                    <TableCell>{session.duration} min</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
