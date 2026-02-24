@@ -2,6 +2,7 @@
 import Link from "next/link"
 import {
   LogOut,
+  Shield,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -56,18 +57,11 @@ const UserMenu = () => {
             {user.role === 'Amministratore' && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Amministrazione</DropdownMenuLabel>
                 <DropdownMenuItem asChild>
-                    <Link href="/dashboard/admin/users">Gestione Utenti</Link>
-                </DropdownMenuItem>
-                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/admin/vehicle-types">Gestione Tipi Veicolo</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/admin/roles">Gestione Ruoli</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/admin/settings">Impostazioni</Link>
+                  <Link href="/dashboard/admin" className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    <span>Pannello Admin</span>
+                  </Link>
                 </DropdownMenuItem>
               </>
             )}
