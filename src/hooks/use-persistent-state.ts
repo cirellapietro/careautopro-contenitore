@@ -7,12 +7,20 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, Dispatch<SetSt
     if (typeof window === 'undefined') {
       return defaultValue;
     }
+    const storedValue = window.localStorage.getItem(key);
+    if (storedValue === null) {
+        return defaultValue;
+    }
+
     try {
-      const storedValue = window.localStorage.getItem(key);
-      return storedValue ? JSON.parse(storedValue) : defaultValue;
+      // Try to parse the stored value as JSON
+      return JSON.parse(storedValue);
     } catch (error) {
-      console.error(`Error reading localStorage key “${key}”:`, error);
-      return defaultValue;
+      // If parsing fails, it's likely a raw string stored by a previous version.
+      // We return the raw value. On the next state change, useEffect will correctly
+      // store it as a JSON string.
+      console.warn(`Value for key "${key}" in localStorage is not valid JSON. Falling back to raw value.`);
+      return storedValue as any;
     }
   });
 
