@@ -84,7 +84,13 @@ export function useCollection<T = any>(
         // Check if we are still subscribed to the same query before updating state
         if (queryKeyRef.current === newQueryKey) {
           const results: WithId<T>[] = querySnapshot.docs.map(doc => ({ ...(doc.data() as T), id: doc.id }));
-          setState({ data: results, isLoading: false, error: null });
+          
+          setState(prevState => {
+              if (JSON.stringify(prevState.data) === JSON.stringify(results) && !prevState.isLoading) {
+                  return prevState;
+              }
+              return { data: results, isLoading: false, error: null };
+          });
         }
       },
       (err: FirestoreError) => {

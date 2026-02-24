@@ -75,7 +75,13 @@ export function useDoc<T = any>(
         // Check if we are still subscribed to the same path before updating state
         if (pathRef.current === newPath) {
           const docData = docSnapshot.exists() ? { ...(docSnapshot.data() as T), id: docSnapshot.id } : null;
-          setState({ data: docData, isLoading: false, error: null });
+          
+          setState(prevState => {
+              if (JSON.stringify(prevState.data) === JSON.stringify(docData) && !prevState.isLoading) {
+                  return prevState;
+              }
+              return { data: docData, isLoading: false, error: null };
+          });
         }
       },
       (err: FirestoreError) => {
