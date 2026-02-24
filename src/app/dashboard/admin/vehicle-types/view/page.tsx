@@ -54,22 +54,19 @@ function VehicleTypeDetailContent() {
 
   const { data: maintenanceChecks, isLoading: checksLoading } = useCollection<MaintenanceCheck>(checksQuery);
 
+  const formValues = useMemo(() => ({
+    name: vehicleType?.name || '',
+    averageAnnualMileage: vehicleType?.averageAnnualMileage || 10000,
+  }), [vehicleType]);
+
   const form = useForm<VehicleTypeFormValues>({
     resolver: zodResolver(vehicleTypeSchema),
+    values: formValues, // Use `values` to handle dynamic default values
     defaultValues: {
       name: '',
       averageAnnualMileage: 10000,
     }
   });
-
-  useEffect(() => {
-    if (vehicleType) {
-      form.reset({
-        name: vehicleType.name || '',
-        averageAnnualMileage: vehicleType.averageAnnualMileage || 10000,
-      });
-    }
-  }, [vehicleType?.name, vehicleType?.averageAnnualMileage, form.reset]);
 
   const handleDeleteCheck = () => {
     if (!checkToDelete || !firestore || !vehicleTypeId) return;
