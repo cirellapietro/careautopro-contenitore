@@ -39,6 +39,10 @@ export default function DashboardLayout({
     { href: "/dashboard/notifications", label: "Notifiche" },
   ];
 
+  if (user.role === 'Amministratore') {
+    navItems.push({ href: "/dashboard/admin", label: "Amministrazione" });
+  }
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
