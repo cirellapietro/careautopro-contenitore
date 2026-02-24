@@ -34,6 +34,7 @@ export default function AdminLayout({
     { href: "/dashboard/admin/settings", label: "Impostazioni" },
     { href: "/dashboard/admin/users", label: "Utenti" },
     { href: "/dashboard/admin/vehicle-types", label: "Tipi Veicolo" },
+    { href: "/dashboard/admin/maintenance-checks", label: "Controlli Periodici" },
     { href: "/dashboard/admin/roles", label: "Ruoli" },
   ];
 
