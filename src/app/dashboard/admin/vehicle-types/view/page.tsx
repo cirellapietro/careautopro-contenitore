@@ -62,11 +62,20 @@ function VehicleTypeDetailContent() {
 
   const form = useForm<VehicleTypeFormValues>({
     resolver: zodResolver(vehicleTypeSchema),
-    values: {
-      name: vehicleType?.name || '',
-      averageAnnualMileage: vehicleType?.averageAnnualMileage || 10000,
+    defaultValues: {
+      name: '',
+      averageAnnualMileage: 10000,
     },
   });
+
+  useEffect(() => {
+    if (vehicleType) {
+      form.reset({
+        name: vehicleType.name || '',
+        averageAnnualMileage: vehicleType.averageAnnualMileage || 10000,
+      });
+    }
+  }, [vehicleType, form.reset]);
 
   // Fetch location-based mileage suggestion
   useEffect(() => {
@@ -99,7 +108,7 @@ function VehicleTypeDetailContent() {
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
       );
     }
-  }, [isNew, permissionStatus, form, toast]);
+  }, [isNew, permissionStatus, form.setValue, toast]);
 
   const handleDeleteCheck = () => {
     if (!checkToDelete || !firestore || !vehicleTypeId) return;
@@ -226,13 +235,10 @@ function VehicleTypeDetailContent() {
                 )}
               />
             </CardContent>
-            <CardFooter className="flex gap-2">
+            <CardFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isNew ? 'Crea Tipo Veicolo' : 'Salva Modifiche'}
-              </Button>
-              <Button type="button" variant="destructive" onClick={() => router.push('/dashboard/admin/vehicle-types')}>
-                Annulla
               </Button>
             </CardFooter>
           </form>
