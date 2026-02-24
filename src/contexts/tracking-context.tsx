@@ -43,6 +43,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     const [sessionDuration, setSessionDuration] = useState(0); // in seconds
 
     const watchIdRef = useRef<number | null>(null);
+    const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
     const distanceRef = useRef(0);
     const startTimeRef = useRef<Date | null>(null);
@@ -57,35 +58,18 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         return vehicles?.find(v => v.id === trackedVehicleId) || null;
     }, [vehicles, trackedVehicleId]);
 
-    // Effect for live-updating session data
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
-        if (isTracking && startTimeRef.current) {
-            interval = setInterval(() => {
-                setSessionDistance(distanceRef.current);
-                const elapsedSeconds = Math.floor((new Date().getTime() - startTimeRef.current!.getTime()) / 1000);
-                setSessionDuration(elapsedSeconds);
-            }, 1000);
-        } else {
-            setSessionDistance(0);
-            setSessionDuration(0);
-        }
-
-        return () => {
-            if (interval) {
-                clearInterval(interval);
-            }
-        };
-    }, [isTracking]);
-
     const resetTrackingState = useCallback(() => {
-        distanceRef.current = 0;
-        lastPositionRef.current = null;
-        startTimeRef.current = null;
+        if (durationIntervalRef.current) {
+            clearInterval(durationIntervalRef.current);
+            durationIntervalRef.current = null;
+        }
         if (watchIdRef.current) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
         }
+        distanceRef.current = 0;
+        lastPositionRef.current = null;
+        startTimeRef.current = null;
         setSessionDistance(0);
         setSessionDuration(0);
     }, []);
@@ -112,6 +96,15 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         startTimeRef.current = new Date();
         toast({ title: 'Tracciamento avviato!', description: `Veicolo: ${vehicleToTrack?.name}` });
 
+        // Start duration timer
+        durationIntervalRef.current = setInterval(() => {
+            if (startTimeRef.current) {
+                const elapsedSeconds = Math.floor((new Date().getTime() - startTimeRef.current.getTime()) / 1000);
+                setSessionDuration(elapsedSeconds);
+            }
+        }, 1000);
+
+        // Start position watcher
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 if (lastPositionRef.current) {
@@ -122,6 +115,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                         position.coords.longitude
                     );
                     distanceRef.current += newDistance;
+                    setSessionDistance(distanceRef.current); // Update state directly
                 }
                 lastPositionRef.current = position.coords;
             },
@@ -136,11 +130,17 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
 
     const stopTracking = useCallback(async () => {
         setIsStopping(true);
+        // Clear timers and watchers FIRST
+        if (durationIntervalRef.current) {
+            clearInterval(durationIntervalRef.current);
+            durationIntervalRef.current = null;
+        }
         if (watchIdRef.current !== null) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
         }
-        setIsTracking(false);
+        
+        setIsTracking(false); // Update state
 
         const trackedDistance = distanceRef.current;
         const trackedDuration = startTimeRef.current ? (new Date().getTime() - startTimeRef.current.getTime()) / 60000 : 0; // in minutes
