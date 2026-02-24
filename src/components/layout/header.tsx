@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/firebase/auth/use-user"
 import { signOut } from "@/firebase/auth/auth"
+import { useTracking } from "@/contexts/tracking-context"
 
 const UserMenu = () => {
     const { user } = useUser();
@@ -74,6 +75,18 @@ const UserMenu = () => {
     </DropdownMenu>
 )}
 
+function TrackingIndicator() {
+    const { isTracking, trackedVehicle } = useTracking();
+    if (!isTracking || !trackedVehicle) return null;
+
+    return (
+        <div className="hidden items-center gap-2 rounded-full bg-destructive px-3 py-1 text-xs font-medium text-destructive-foreground md:flex">
+            <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+            <span>Tracciando: {trackedVehicle.name}</span>
+        </div>
+    );
+}
+
 
 export function Header() {
     return (
@@ -82,6 +95,7 @@ export function Header() {
                 <Logo />
             </Link>
             <div className="flex items-center gap-4">
+                <TrackingIndicator />
                 <ThemeToggleButton />
                 <UserMenu />
             </div>
