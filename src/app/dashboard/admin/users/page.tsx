@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirebase, useCollection } from "@/firebase";
-import { collection, query } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -16,7 +16,7 @@ export default function AdminUsersPage() {
   const { user: currentUser, loading: userLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();
-  const usersQuery = useMemo(() => (firestore && currentUser?.role === 'Amministratore') ? query(collection(firestore, 'users')) : null, [firestore, currentUser]);
+  const usersQuery = useMemo(() => (firestore && currentUser?.role === 'Amministratore') ? query(collection(firestore, 'users'), where('dataoraelimina', '==', null)) : null, [firestore, currentUser]);
   const { data: users, isLoading } = useCollection<User>(usersQuery);
   if (userLoading || isLoading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   return (
