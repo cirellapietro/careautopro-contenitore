@@ -14,11 +14,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ArrowLeft, Loader2, PlusCircle, Pencil, Trash2 } from 'lucide-react';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useTracking } from '@/contexts/tracking-context';
+import { reverseGeocode } from '@/ai/flows/reverse-geocode';
+import { fetchAverageMileage } from '@/ai/flows/fetch-average-mileage';
 
 
 const vehicleTypeSchema = z.object({
@@ -54,19 +57,59 @@ function VehicleTypeDetailContent() {
 
   const { data: maintenanceChecks, isLoading: checksLoading } = useCollection<MaintenanceCheck>(checksQuery);
 
-  const formValues = useMemo(() => ({
-    name: vehicleType?.name || '',
-    averageAnnualMileage: vehicleType?.averageAnnualMileage || 10000,
-  }), [vehicleType]);
+  const { permissionStatus } = useTracking();
+  const [isFetchingSuggestion, setIsFetchingSuggestion] = useState(false);
 
   const form = useForm<VehicleTypeFormValues>({
     resolver: zodResolver(vehicleTypeSchema),
-    values: formValues, // Use `values` to handle dynamic default values
     defaultValues: {
       name: '',
       averageAnnualMileage: 10000,
     }
   });
+
+  // Set form values from fetched data
+  useEffect(() => {
+    if (vehicleType) {
+      form.reset({
+        name: vehicleType.name,
+        averageAnnualMileage: vehicleType.averageAnnualMileage
+      });
+    }
+  }, [vehicleType, form]);
+
+  // Fetch mileage suggestion for new vehicle types
+  useEffect(() => {
+    if (isNew && navigator.geolocation && permissionStatus === 'granted') {
+      setIsFetchingSuggestion(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const location = await reverseGeocode({ latitude, longitude });
+            if (location?.city) {
+              const mileageData = await fetchAverageMileage({ city: location.city, country: location.country });
+              if (mileageData?.averageMileage) {
+                form.setValue('averageAnnualMileage', mileageData.averageMileage, { shouldValidate: true });
+                toast({
+                  title: 'Suggerimento',
+                  description: `Chilometraggio medio annuo per la tua zona impostato a ${mileageData.averageMileage.toLocaleString('it-IT')} km.`,
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching mileage suggestion:", error);
+          } finally {
+            setIsFetchingSuggestion(false);
+          }
+        },
+        () => {
+          setIsFetchingSuggestion(false);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
+      );
+    }
+  }, [isNew, permissionStatus, form, toast]);
 
   const handleDeleteCheck = () => {
     if (!checkToDelete || !firestore || !vehicleTypeId) return;
@@ -119,14 +162,15 @@ function VehicleTypeDetailContent() {
         .finally(() => setIsSubmitting(false));
 
     } else if (vehicleType) {
+      if (!vtRef) return;
       const dataToUpdate = { ...values };
-      updateDoc(vtRef!, dataToUpdate)
+      updateDoc(vtRef, dataToUpdate)
         .then(() => {
           toast({ title: 'Successo', description: 'Tipo veicolo aggiornato.' });
         })
         .catch(serverError => {
           const permissionError = new FirestorePermissionError({
-            path: vtRef!.path,
+            path: vtRef.path,
             operation: 'update',
             requestResourceData: dataToUpdate,
           });
@@ -184,8 +228,9 @@ function VehicleTypeDetailContent() {
                   <FormItem>
                     <FormLabel>Chilometraggio Medio Annuo</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Es. 12000" {...field} />
+                       <Input type="number" placeholder={isFetchingSuggestion ? "Sto cercando un suggerimento..." : "Es. 12000"} {...field} />
                     </FormControl>
+                     {isFetchingSuggestion && <FormDescription>Sto cercando il chilometraggio medio per la tua zona...</FormDescription>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -201,7 +246,7 @@ function VehicleTypeDetailContent() {
         </Form>
       </Card>
       
-      {!isNew && (
+      {!isNew && vehicleTypeId && (
         <Card>
           <CardHeader>
             <CardTitle>Piano di Manutenzione Standard</CardTitle>

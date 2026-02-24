@@ -48,6 +48,9 @@ import type { VehicleType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { fetchMaintenancePlan } from '@/ai/flows/fetch-maintenance-plan';
 import { Checkbox } from '../ui/checkbox';
+import { useTracking } from '@/contexts/tracking-context';
+import { reverseGeocode } from '@/ai/flows/reverse-geocode';
+import { fetchAverageMileage } from '@/ai/flows/fetch-average-mileage';
 
 
 const addVehicleSchema = z.object({
@@ -76,6 +79,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
+  const { permissionStatus } = useTracking();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newVehicleId, setNewVehicleId] = useState<string | null>(null);
@@ -87,6 +91,9 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
 
+  const [cityAverageMileage, setCityAverageMileage] = useState<number | null>(null);
+  const [isFetchingSuggestion, setIsFetchingSuggestion] = useState(false);
+
   const form = useForm<AddVehicleFormValues>({
     resolver: zodResolver(addVehicleSchema),
     defaultValues: {
@@ -97,6 +104,8 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       isTaxi: false,
     },
   });
+  
+  const registrationDate = form.watch('registrationDate');
 
   // Fetch vehicle types with getDocs
   useEffect(() => {
@@ -146,6 +155,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       setYear('');
       setMonth('');
       setDay('');
+      setCityAverageMileage(null);
     }
   }, [open, form]);
 
@@ -163,6 +173,52 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         form.setValue('registrationDate', '', { shouldValidate: true });
     }
   }, [year, month, day, form]);
+
+  // Fetch location-based mileage suggestion
+  useEffect(() => {
+    if (open && navigator.geolocation && permissionStatus === 'granted' && !cityAverageMileage) {
+      setIsFetchingSuggestion(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const location = await reverseGeocode({ latitude, longitude });
+            if (location?.city) {
+              const mileageData = await fetchAverageMileage({ city: location.city, country: location.country });
+              if (mileageData?.averageMileage) {
+                setCityAverageMileage(mileageData.averageMileage);
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching mileage suggestion:", error);
+          } finally {
+            setIsFetchingSuggestion(false);
+          }
+        },
+        () => {
+          setIsFetchingSuggestion(false);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
+      );
+    }
+  }, [open, permissionStatus, cityAverageMileage]);
+
+  const suggestedCurrentMileage = useMemo(() => {
+    if (!cityAverageMileage || !registrationDate) return null;
+    try {
+        const regDate = new Date(registrationDate);
+        const today = new Date();
+        const daysSinceRegistration = (today.getTime() - regDate.getTime()) / (1000 * 3600 * 24);
+        if (daysSinceRegistration < 0) return null;
+        
+        const dailyAverage = cityAverageMileage / 365;
+        const estimatedMileage = Math.round(dailyAverage * daysSinceRegistration);
+        return estimatedMileage > 0 ? estimatedMileage : null;
+    } catch {
+        return null;
+    }
+  }, [cityAverageMileage, registrationDate]);
+
 
   const selectedTypeId = form.watch('vehicleTypeId');
   const selectedVehicleType = vehicleTypes.find(
@@ -186,7 +242,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
     const model = nameParts.slice(1).join(' ').replace(/\(.*?\)/g, '').trim() || '';
 
     try {
-        const mileage = values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
+        const mileage = values.currentMileage ?? suggestedCurrentMileage ?? selectedVehicleType.averageAnnualMileage;
 
         const newVehicleData = {
           ...values,
@@ -469,15 +525,21 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="Es. 45000"
+                            placeholder={
+                                isFetchingSuggestion ? "Calcolando suggerimento..." : 
+                                suggestedCurrentMileage ? `${suggestedCurrentMileage.toLocaleString('it-IT')}` : "Es. 45000"
+                            }
                             {...field}
                             value={field.value ?? ''}
                           />
                         </FormControl>
                         <FormDescription>
-                          {selectedVehicleType && !form.getValues('currentMileage')
-                            ? `Se non specificato, verrà usata una media di ${selectedVehicleType.averageAnnualMileage.toLocaleString('it-IT')} km.`
-                            : 'Inserisci i km attuali per una maggiore precisione.'}
+                            {isFetchingSuggestion ? 'Sto cercando il chilometraggio medio per la tua zona...' : 
+                             suggestedCurrentMileage ? `Stima basata sulla tua zona: ${suggestedCurrentMileage.toLocaleString('it-IT')} km. Puoi comunque inserire il valore esatto.` :
+                             (selectedVehicleType && !form.getValues('currentMileage')
+                                ? `Se non specificato, verrà usata una media di ${selectedVehicleType.averageAnnualMileage.toLocaleString('it-IT')} km.`
+                                : 'Inserisci i km attuali per una maggiore precisione.')
+                            }
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
