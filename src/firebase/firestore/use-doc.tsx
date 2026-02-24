@@ -24,6 +24,28 @@ export interface UseDocResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
+// Helper to create a stable string representation of an object for comparison.
+const stableStringify = (obj: any): string => {
+  if (obj === null) return 'null';
+  if (obj === undefined) return 'undefined';
+  if (typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return `[${obj.map(stableStringify).join(',')}]`;
+  }
+
+  const keys = Object.keys(obj).sort();
+  const kvPairs = keys.map(key => {
+    const value = obj[key];
+    if(value === undefined) return ''; // Omit undefined values
+    return `${JSON.stringify(key)}:${stableStringify(value)}`;
+  }).filter(Boolean);
+  return `{${kvPairs.join(',')}}`;
+};
+
+
 /**
  * React hook to subscribe to a single Firestore document in real-time.
  * It remains in a loading state until the document reference is provided and the data is fetched.
@@ -49,35 +71,32 @@ export function useDoc<T = any>(
   useEffect(() => {
     const newPath = docRef?.path || null;
 
-    // If the reference is not provided, we should remain in a loading state.
-    // If the reference was previously available and now is not, reset to loading.
     if (!docRef || !newPath) {
-      if (pathRef.current !== null) { // It was previously set
+      if (pathRef.current !== null) { 
         setState({ data: null, isLoading: true, error: null });
         pathRef.current = null;
       }
       return;
     }
 
-    // If the path has not changed, no need to re-subscribe.
-    if (newPath === pathRef.current) {
+    if (newPath === pathRef.current && !state.isLoading) {
       return;
     }
     
     pathRef.current = newPath;
     
-    // A new document reference has been provided. Start loading.
-    setState({ data: null, isLoading: true, error: null });
+    // Set loading state but preserve old data to prevent UI flickering
+    setState(prevState => ({ ...prevState, isLoading: true }));
 
     const unsubscribe = onSnapshot(
       docRef,
       (docSnapshot: DocumentSnapshot<DocumentData>) => {
-        // Check if we are still subscribed to the same path before updating state
         if (pathRef.current === newPath) {
           const docData = docSnapshot.exists() ? { ...(docSnapshot.data() as T), id: docSnapshot.id } : null;
           
           setState(prevState => {
-              if (JSON.stringify(prevState.data) === JSON.stringify(docData) && !prevState.isLoading) {
+              // Only update state if data has actually changed to prevent infinite loops
+              if (stableStringify(prevState.data) === stableStringify(docData) && !prevState.isLoading) {
                   return prevState;
               }
               return { data: docData, isLoading: false, error: null };
@@ -90,7 +109,6 @@ export function useDoc<T = any>(
           path: docRef.path,
         });
         
-        // Check if we are still subscribed to the same path before updating state
         if (pathRef.current === newPath) {
           setState({ data: null, isLoading: false, error: contextualError });
           errorEmitter.emit('permission-error', contextualError);
@@ -99,7 +117,7 @@ export function useDoc<T = any>(
     );
 
     return () => unsubscribe();
-  }, [docRef]); // Dependency is the memoized reference object itself.
+  }, [docRef]); // Dependency on the memoized reference is correct.
 
   return state;
 }

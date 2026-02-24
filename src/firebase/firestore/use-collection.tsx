@@ -25,7 +25,6 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
-// Internal type to access private properties for creating a stable key.
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
@@ -33,6 +32,28 @@ export interface InternalQuery extends Query<DocumentData> {
     }
   }
 }
+
+// Helper to create a stable string representation of an object for comparison.
+const stableStringify = (obj: any): string => {
+  if (obj === null) return 'null';
+  if (obj === undefined) return 'undefined';
+  if (typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return `[${obj.map(stableStringify).join(',')}]`;
+  }
+
+  const keys = Object.keys(obj).sort();
+  const kvPairs = keys.map(key => {
+    const value = obj[key];
+    if(value === undefined) return ''; // Omit undefined values
+    return `${JSON.stringify(key)}:${stableStringify(value)}`;
+  }).filter(Boolean);
+  return `{${kvPairs.join(',')}}`;
+};
+
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
@@ -57,36 +78,34 @@ export function useCollection<T = any>(
   const queryKeyRef = useRef<string | null>(null);
   
   useEffect(() => {
+    // This is a safe way to get a stable key from a Firestore query object.
     const newQueryKey = query ? (query as unknown as InternalQuery)._query.path.canonicalString() : null;
 
-    // If the query is not provided, we should remain in a loading state.
     if (!query || !newQueryKey) {
-        if (queryKeyRef.current !== null) { // It was previously set
+        if (queryKeyRef.current !== null) {
             setState({ data: null, isLoading: true, error: null });
             queryKeyRef.current = null;
         }
         return;
     }
 
-    // If the query key has not changed, no need to re-subscribe.
-    if (newQueryKey === queryKeyRef.current) {
+    if (newQueryKey === queryKeyRef.current && !state.isLoading) {
         return;
     }
 
     queryKeyRef.current = newQueryKey;
     
-    // A new query has been provided. Start loading.
-    setState({ data: null, isLoading: true, error: null });
+    // Set loading state but preserve old data to prevent UI flickering
+    setState(prevState => ({ ...prevState, isLoading: true }));
 
     const unsubscribe = onSnapshot(
       query,
       (querySnapshot: QuerySnapshot<DocumentData>) => {
-        // Check if we are still subscribed to the same query before updating state
         if (queryKeyRef.current === newQueryKey) {
           const results: WithId<T>[] = querySnapshot.docs.map(doc => ({ ...(doc.data() as T), id: doc.id }));
           
           setState(prevState => {
-              if (JSON.stringify(prevState.data) === JSON.stringify(results) && !prevState.isLoading) {
+              if (stableStringify(prevState.data) === stableStringify(results) && !prevState.isLoading) {
                   return prevState;
               }
               return { data: results, isLoading: false, error: null };
@@ -101,7 +120,6 @@ export function useCollection<T = any>(
           path,
         });
         
-        // Check if we are still subscribed to the same query before updating state
         if (queryKeyRef.current === newQueryKey) {
           setState({ data: null, isLoading: false, error: contextualError });
           errorEmitter.emit('permission-error', contextualError);
@@ -110,7 +128,7 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [query]); // Dependency is the memoized query object itself.
+  }, [query]);
 
   return state;
 }
