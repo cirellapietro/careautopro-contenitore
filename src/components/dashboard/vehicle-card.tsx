@@ -5,10 +5,12 @@ import { type Vehicle } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Car, Zap, Leaf, Flame, PlayCircle, StopCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Car, Zap, Leaf, Flame, PlayCircle, StopCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import React from 'react';
 import { useTracking } from '@/contexts/tracking-context';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+
 
 type VehicleCardProps = {
   vehicle: Vehicle;
@@ -32,6 +34,7 @@ const VehicleIcon = ({ type, className }: { type: string, className?: string }) 
 
 
 export function VehicleCard({ vehicle }: VehicleCardProps) {
+  const router = useRouter();
   const { 
     trackedVehicleId, 
     setTrackedVehicleId,
@@ -57,16 +60,19 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
 
   const mileage = typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0;
 
-  const handleSelect = () => {
-    if (!isTracking) {
-      setTrackedVehicleId(vehicle.id);
-    }
+  const handleCardClick = () => {
+    router.push(`/dashboard/vehicles/view?id=${vehicle.id}`);
   }
+
+  const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation(); // Prevent card click event
+    action();
+  };
 
   const renderFooter = () => {
     if (isThisVehicleBeingTracked) {
       return (
-        <Button onClick={stopTracking} variant="destructive" className="w-full" disabled={isStopping}>
+        <Button onClick={(e) => handleButtonClick(e, stopTracking)} variant="destructive" className="w-full" disabled={isStopping}>
           {isStopping ? <Loader2 className="animate-spin" /> : <StopCircle />}
           Ferma Tracciamento
         </Button>
@@ -75,70 +81,55 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
 
     if (isThisVehicleSelected) {
       return (
-        <div className="w-full grid grid-cols-2 gap-2">
-          <Button onClick={() => startTracking()} className="w-full" disabled={!canStartTracking || isTracking}>
-            <PlayCircle /> Inizia
-          </Button>
-          <Button asChild className="w-full" variant="secondary">
-            <Link href={`/dashboard/vehicles/view?id=${vehicle.id}`}>
-              Dettagli <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+        <div className="w-full flex flex-col items-center gap-2">
+            <Button onClick={(e) => handleButtonClick(e, startTracking)} className="w-full" disabled={!canStartTracking || isTracking}>
+                <PlayCircle /> Attiva Tracking KM/Tempo
+            </Button>
+            <p className="text-xs text-muted-foreground text-center px-2">
+              Il tracking calcola solo la distanza e il tempo d'uso per le scadenze. Le tue posizioni geografiche non vengono salvate né tracciate.
+            </p>
         </div>
       );
     }
 
-    // This card is not selected.
-    // If another vehicle is being tracked, show a button to switch tracking to this one.
     if (isTracking) {
        return (
-            <div className="w-full grid grid-cols-2 gap-2">
-                <Button onClick={() => switchTrackingTo(vehicle.id)} variant="outline" className="w-full">
-                    <PlayCircle /> Traccia questo
-                </Button>
-                <Button asChild className="w-full" variant="secondary">
-                    <Link href={`/dashboard/vehicles/view?id=${vehicle.id}`}>
-                        Dettagli <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
-            </div>
+            <Button onClick={(e) => handleButtonClick(e, () => switchTrackingTo(vehicle.id))} variant="outline" className="w-full">
+                <PlayCircle /> Traccia questo
+            </Button>
         );
     }
     
     // Default case: This card is not selected, and no tracking is active.
     return (
-        <div className="w-full grid grid-cols-2 gap-2">
-            <Button onClick={handleSelect} variant="outline" className="w-full" disabled={isTracking}>
-                <CheckCircle2 /> Seleziona
-            </Button>
-            <Button asChild className="w-full" variant="secondary">
-                <Link href={`/dashboard/vehicles/view?id=${vehicle.id}`}>
-                    Dettagli <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-            </Button>
-        </div>
+        <Button onClick={(e) => handleButtonClick(e, () => setTrackedVehicleId(vehicle.id))} variant="outline" className="w-full" disabled={isTracking}>
+            <CheckCircle2 /> Seleziona per tracciare
+        </Button>
     );
   }
 
   return (
-    <Card className={cn("flex flex-col transition-all", isThisVehicleSelected && "ring-2 ring-primary")}>
-       <CardHeader className="flex flex-col items-center justify-center p-6 text-center">
-        <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-secondary">
-            <VehicleIcon type={vehicle.type} className="h-12 w-12 text-accent" />
-        </div>
-        <Badge variant="outline">{vehicle.type}</Badge>
-        <CardTitle className="font-headline text-2xl mt-2">{vehicle.name}</CardTitle>
-        <CardDescription>{vehicle.make} {vehicle.model} - {registrationYear}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 p-6 pt-0">
-        <div className="border-t pt-4 text-sm text-muted-foreground">
-          <p>Chilometraggio: <span className="font-semibold text-foreground">{mileage.toLocaleString('it-IT')} km</span></p>
-          <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
-        </div>
-      </CardContent>
-      <CardFooter className="p-4 pt-0">
-        {renderFooter()}
-      </CardFooter>
+    <Card 
+        className={cn("flex flex-col transition-all cursor-pointer hover:bg-muted/50", isThisVehicleSelected && "ring-2 ring-primary")}
+        onClick={handleCardClick}
+    >
+        <CardHeader className="flex flex-col items-center justify-center p-6 text-center">
+            <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-secondary">
+                <VehicleIcon type={vehicle.type} className="h-12 w-12 text-accent" />
+            </div>
+            <Badge variant="outline">{vehicle.type}</Badge>
+            <CardTitle className="font-headline text-2xl mt-2">{vehicle.name}</CardTitle>
+            <CardDescription>{vehicle.make} {vehicle.model} - {registrationYear}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 p-6 pt-0">
+            <div className="border-t pt-4 text-sm text-muted-foreground">
+            <p>Chilometraggio: <span className="font-semibold text-foreground">{mileage.toLocaleString('it-IT')} km</span></p>
+            <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
+            </div>
+        </CardContent>
+        <CardFooter className="p-4 pt-0">
+            {renderFooter()}
+        </CardFooter>
     </Card>
   );
 }
