@@ -5,7 +5,7 @@ import { type Vehicle } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Car, Zap, Leaf, Flame, PlayCircle, StopCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Car, Zap, Leaf, Flame, PlayCircle, StopCircle, CheckCircle2, Loader2, Gauge, Timer } from 'lucide-react';
 import React from 'react';
 import { useTracking } from '@/contexts/tracking-context';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,8 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     isStopping,
     permissionStatus,
     switchTrackingTo,
+    sessionDistance,
+    sessionDuration,
   } = useTracking();
 
   const isThisVehicleSelected = trackedVehicleId === vehicle.id;
@@ -67,6 +69,22 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation(); // Prevent card click event
     action();
+  };
+
+  const formatDuration = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    const paddedMinutes = String(minutes).padStart(2, '0');
+    const paddedSeconds = String(seconds).padStart(2, '0');
+
+    if (hours > 0) {
+        const paddedHours = String(hours).padStart(2, '0');
+        return `${paddedHours}:${paddedMinutes}:${paddedSeconds}`;
+    }
+    
+    return `${paddedMinutes}:${paddedSeconds}`;
   };
 
   const renderFooter = () => {
@@ -122,10 +140,23 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
             <CardDescription>{vehicle.make} {vehicle.model} - {registrationYear}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 p-6 pt-0">
-            <div className="border-t pt-4 text-sm text-muted-foreground">
-            <p>Chilometraggio: <span className="font-semibold text-foreground">{mileage.toLocaleString('it-IT')} km</span></p>
-            <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
-            </div>
+            {isThisVehicleBeingTracked ? (
+                <div className="border-t pt-4 text-sm text-muted-foreground">
+                    <p className="flex items-center gap-2">
+                        <Gauge className="h-4 w-4 text-primary animate-pulse" /> 
+                        Distanza sessione: <span className="font-semibold text-foreground">{sessionDistance.toFixed(2)} km</span>
+                    </p>
+                    <p className="mt-1 flex items-center gap-2">
+                        <Timer className="h-4 w-4 text-primary animate-pulse" /> 
+                        Tempo trascorso: <span className="font-semibold text-foreground">{formatDuration(sessionDuration)}</span>
+                    </p>
+                </div>
+            ) : (
+                <div className="border-t pt-4 text-sm text-muted-foreground">
+                <p>Chilometraggio: <span className="font-semibold text-foreground">{mileage.toLocaleString('it-IT')} km</span></p>
+                <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
+                </div>
+            )}
         </CardContent>
         <CardFooter className="p-4 pt-0">
             {renderFooter()}

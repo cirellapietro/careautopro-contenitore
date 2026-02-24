@@ -23,6 +23,8 @@ interface TrackingContextType {
   switchTrackingTo: (newVehicleId: string) => Promise<void>;
   trackedVehicle: Vehicle | null;
   vehicles: Vehicle[];
+  sessionDistance: number;
+  sessionDuration: number; // in seconds
 }
 
 const TrackingContext = createContext<TrackingContextType | undefined>(undefined);
@@ -36,6 +38,9 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     const [isTracking, setIsTracking] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
     const [trackedVehicleId, setTrackedVehicleId] = usePersistentState<string | null>('trackedVehicleId', null);
+    
+    const [sessionDistance, setSessionDistance] = useState(0);
+    const [sessionDuration, setSessionDuration] = useState(0); // in seconds
 
     const watchIdRef = useRef<number | null>(null);
     const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
@@ -52,6 +57,27 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         return vehicles?.find(v => v.id === trackedVehicleId) || null;
     }, [vehicles, trackedVehicleId]);
 
+    // Effect for live-updating session data
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+        if (isTracking && startTimeRef.current) {
+            interval = setInterval(() => {
+                setSessionDistance(distanceRef.current);
+                const elapsedSeconds = Math.floor((new Date().getTime() - startTimeRef.current!.getTime()) / 1000);
+                setSessionDuration(elapsedSeconds);
+            }, 1000);
+        } else {
+            setSessionDistance(0);
+            setSessionDuration(0);
+        }
+
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        };
+    }, [isTracking]);
+
     const resetTrackingState = useCallback(() => {
         distanceRef.current = 0;
         lastPositionRef.current = null;
@@ -60,6 +86,8 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
         }
+        setSessionDistance(0);
+        setSessionDuration(0);
     }, []);
 
     const startTracking = useCallback((vehicleIdOverride?: string) => {
@@ -75,7 +103,8 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             console.warn("Attempted to start tracking while a session is already active.");
             return;
         }
-
+        
+        resetTrackingState(); // Ensure state is clean before starting
         setIsTracking(true);
         if (vehicleIdOverride) {
             setTrackedVehicleId(vehicleIdOverride);
@@ -218,7 +247,9 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         switchTrackingTo,
         trackedVehicle,
         vehicles: vehicles || [],
-    }), [permissionStatus, isTracking, isStopping, trackedVehicleId, setTrackedVehicleId, startTracking, stopTracking, switchTrackingTo, trackedVehicle, vehicles]);
+        sessionDistance,
+        sessionDuration,
+    }), [permissionStatus, isTracking, isStopping, trackedVehicleId, setTrackedVehicleId, startTracking, stopTracking, switchTrackingTo, trackedVehicle, vehicles, sessionDistance, sessionDuration]);
 
     return (
         <TrackingContext.Provider value={value}>
