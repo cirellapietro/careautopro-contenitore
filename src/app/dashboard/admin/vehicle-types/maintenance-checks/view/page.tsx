@@ -64,7 +64,7 @@ function MaintenanceCheckDetailContent() {
         intervalTime: maintenanceCheck.intervalTime,
       });
     }
-  }, [maintenanceCheck, form]);
+  }, [maintenanceCheck, form.reset]);
   
   if (!vehicleTypeId) {
       return (
