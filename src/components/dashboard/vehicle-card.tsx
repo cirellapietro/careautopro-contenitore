@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { type Vehicle } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +39,8 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     startTracking,
     stopTracking,
     isStopping,
-    permissionStatus
+    permissionStatus,
+    switchTrackingTo,
   } = useTracking();
 
   const isThisVehicleSelected = trackedVehicleId === vehicle.id;
@@ -69,10 +72,11 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         </Button>
       );
     }
+
     if (isThisVehicleSelected) {
       return (
         <div className="w-full grid grid-cols-2 gap-2">
-          <Button onClick={startTracking} className="w-full" disabled={!canStartTracking || isTracking}>
+          <Button onClick={() => startTracking()} className="w-full" disabled={!canStartTracking || isTracking}>
             <PlayCircle /> Inizia
           </Button>
           <Button asChild className="w-full" variant="secondary">
@@ -83,6 +87,25 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         </div>
       );
     }
+
+    // This card is not selected.
+    // If another vehicle is being tracked, show a button to switch tracking to this one.
+    if (isTracking) {
+       return (
+            <div className="w-full grid grid-cols-2 gap-2">
+                <Button onClick={() => switchTrackingTo(vehicle.id)} variant="outline" className="w-full">
+                    <PlayCircle /> Traccia questo
+                </Button>
+                <Button asChild className="w-full" variant="secondary">
+                    <Link href={`/dashboard/vehicles/view?id=${vehicle.id}`}>
+                        Dettagli <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </div>
+        );
+    }
+    
+    // Default case: This card is not selected, and no tracking is active.
     return (
         <div className="w-full grid grid-cols-2 gap-2">
             <Button onClick={handleSelect} variant="outline" className="w-full" disabled={isTracking}>

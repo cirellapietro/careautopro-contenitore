@@ -18,8 +18,9 @@ interface TrackingContextType {
   isStopping: boolean;
   trackedVehicleId: string | null;
   setTrackedVehicleId: (id: string | null) => void;
-  startTracking: () => void;
-  stopTracking: () => void;
+  startTracking: (vehicleIdOverride?: string) => void;
+  stopTracking: () => Promise<void>;
+  switchTrackingTo: (newVehicleId: string) => Promise<void>;
   trackedVehicle: Vehicle | null;
   vehicles: Vehicle[];
 }
@@ -61,15 +62,26 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    const startTracking = useCallback(() => {
-        if (permissionStatus !== 'granted' || !trackedVehicleId) {
+    const startTracking = useCallback((vehicleIdOverride?: string) => {
+        const idToTrack = vehicleIdOverride || trackedVehicleId;
+        const vehicleToTrack = vehicles?.find(v => v.id === idToTrack);
+
+        if (permissionStatus !== 'granted' || !idToTrack) {
             toast({ variant: 'destructive', title: 'Errore', description: 'Permessi GPS non concessi o nessun veicolo selezionato.' });
             return;
         }
 
+        if (isTracking) {
+            console.warn("Attempted to start tracking while a session is already active.");
+            return;
+        }
+
         setIsTracking(true);
+        if (vehicleIdOverride) {
+            setTrackedVehicleId(vehicleIdOverride);
+        }
         startTimeRef.current = new Date();
-        toast({ title: 'Tracciamento avviato!', description: `Veicolo: ${trackedVehicle?.name}` });
+        toast({ title: 'Tracciamento avviato!', description: `Veicolo: ${vehicleToTrack?.name}` });
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
@@ -91,7 +103,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [permissionStatus, trackedVehicleId, trackedVehicle, toast, resetTrackingState]);
+    }, [permissionStatus, trackedVehicleId, vehicles, toast, resetTrackingState, setTrackedVehicleId, isTracking]);
 
     const stopTracking = useCallback(async () => {
         setIsStopping(true);
@@ -174,6 +186,13 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         }
     }, [user, firestore, trackedVehicleId, toast, resetTrackingState]);
 
+    const switchTrackingTo = useCallback(async (newVehicleId: string) => {
+        if (isTracking) {
+            await stopTracking();
+        }
+        startTracking(newVehicleId);
+    }, [isTracking, stopTracking, startTracking]);
+
     useEffect(() => {
         if ('permissions' in navigator) {
             navigator.permissions.query({ name: 'geolocation' }).then(result => {
@@ -196,9 +215,10 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         setTrackedVehicleId,
         startTracking,
         stopTracking,
+        switchTrackingTo,
         trackedVehicle,
         vehicles: vehicles || [],
-    }), [permissionStatus, isTracking, isStopping, trackedVehicleId, setTrackedVehicleId, startTracking, stopTracking, trackedVehicle, vehicles]);
+    }), [permissionStatus, isTracking, isStopping, trackedVehicleId, setTrackedVehicleId, startTracking, stopTracking, switchTrackingTo, trackedVehicle, vehicles]);
 
     return (
         <TrackingContext.Provider value={value}>
