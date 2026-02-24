@@ -147,7 +147,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
       setMonth('');
       setDay('');
     }
-  }, [open, form.reset]);
+  }, [open, form]);
 
   // Combine date parts into the form field
   useEffect(() => {
@@ -183,7 +183,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
 
     const nameParts = values.name.split(' ');
     const make = nameParts[0] || '';
-    const model = nameParts.slice(1).join(' ').replace(/\(.*\)/g, '').trim() || '';
+    const model = nameParts.slice(1).join(' ').replace(/\(.*?\)/g, '').trim() || '';
 
     try {
         const mileage = values.currentMileage ?? selectedVehicleType.averageAnnualMileage;
@@ -308,7 +308,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                 <DialogHeader>
                   <DialogTitle>Veicolo Aggiunto con Successo!</DialogTitle>
                   <DialogDescription>
-                    Ottimo! Ora, per una gestione perfetta, ti consigliamo di aggiornare gli interventi di manutenzione che abbiamo creato per te. Inserisci le tue scadenze reali (es. data scadenza assicurazione, revisione, ultimo tagliando) per ricevere promemoria puntuali.
+                    Veicolo inserito! Abbiamo generato gli interventi di base per questo modello. Per una precisione maggiore, ti invitiamo ad aggiornare le date e i chilometri reali degli ultimi interventi effettuati.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="sm:justify-start gap-2 pt-4">
