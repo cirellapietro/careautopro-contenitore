@@ -62,23 +62,13 @@ function VehicleTypeDetailContent() {
 
   const form = useForm<VehicleTypeFormValues>({
     resolver: zodResolver(vehicleTypeSchema),
-    defaultValues: {
-      name: '',
-      averageAnnualMileage: 10000,
-    }
+    values: {
+      name: vehicleType?.name || '',
+      averageAnnualMileage: vehicleType?.averageAnnualMileage || 10000,
+    },
   });
 
-  // Set form values from fetched data
-  useEffect(() => {
-    if (vehicleType) {
-      form.reset({
-        name: vehicleType.name,
-        averageAnnualMileage: vehicleType.averageAnnualMileage
-      });
-    }
-  }, [vehicleType, form]);
-
-  // Fetch mileage suggestion for new vehicle types
+  // Fetch location-based mileage suggestion
   useEffect(() => {
     if (isNew && navigator.geolocation && permissionStatus === 'granted') {
       setIsFetchingSuggestion(true);
@@ -236,10 +226,13 @@ function VehicleTypeDetailContent() {
                 )}
               />
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex gap-2">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isNew ? 'Crea Tipo Veicolo' : 'Salva Modifiche'}
+              </Button>
+              <Button type="button" variant="destructive" onClick={() => router.push('/dashboard/admin/vehicle-types')}>
+                Annulla
               </Button>
             </CardFooter>
           </form>
