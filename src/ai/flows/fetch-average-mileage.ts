@@ -22,8 +22,12 @@ const FetchAverageMileageOutputSchema = z.object({
 });
 export type FetchAverageMileageOutput = z.infer<typeof FetchAverageMileageOutputSchema>;
 
-export async function fetchAverageMileage(input: FetchAverageMileageInput): Promise<FetchAverageMileageOutput> {
-  return fetchAverageMileageFlow(input);
+export async function fetchAverageMileage(input: FetchAverageMileageInput): Promise<FetchAverageMileageOutput | { error: string }> {
+  try {
+    return await fetchAverageMileageFlow(input);
+  } catch (e: any) {
+    return { error: e.message };
+  }
 }
 
 const prompt = ai.definePrompt({

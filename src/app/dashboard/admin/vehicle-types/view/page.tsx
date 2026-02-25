@@ -82,46 +82,50 @@ function VehicleTypeDetailContent() {
   // Fetch location-based mileage suggestion
   useEffect(() => {
     if (isNew && navigator.geolocation && permissionStatus === 'granted') {
-      setIsFetchingSuggestion(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords;
-            const location = await reverseGeocode({ latitude, longitude });
-            if (location?.city) {
-              const mileageData = await fetchAverageMileage({ city: location.city, country: location.country });
-              if (mileageData?.averageMileage) {
-                form.setValue('averageAnnualMileage', mileageData.averageMileage, { shouldValidate: true });
-                toast({
-                  title: 'Suggerimento',
-                  description: `Chilometraggio medio annuo per la tua zona impostato a ${mileageData.averageMileage.toLocaleString('it-IT')} km.`,
-                });
-              }
-            }
-          } catch (error: any) {
-            console.error("Error fetching mileage suggestion:", error);
-            if (error.message && (error.message.includes('Generative Language API') || error.message.includes('403 Forbidden'))) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Azione richiesta: Abilita API',
-                    description: 'L\'API per l\'IA generativa non è attiva. Abilitala nella tua Google Cloud console per usare questa funzione.',
-                    duration: 10000,
-                });
-            } else {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Errore Assistente AI',
-                    description: "Impossibile recuperare il suggerimento per il chilometraggio.",
-                    duration: 8000,
-                });
-            }
-          } finally {
-            setIsFetchingSuggestion(false);
+      
+      const getSuggestion = async (position: GeolocationPosition) => {
+        setIsFetchingSuggestion(true);
+        const { latitude, longitude } = position.coords;
+        const locationResult = await reverseGeocode({ latitude, longitude });
+
+        if ('error' in locationResult) {
+          if (locationResult.error.includes('Generative Language API')) {
+            toast({
+              variant: 'destructive',
+              title: 'Azione richiesta: Abilita API',
+              description: 'L\'API per l\'IA generativa non è attiva. Abilitala nella tua Google Cloud console per usare questa funzione.',
+              duration: 10000,
+            });
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Errore Assistente AI',
+              description: "Impossibile recuperare la località.",
+              duration: 8000,
+            });
           }
-        },
-        () => {
           setIsFetchingSuggestion(false);
-        },
+          return;
+        }
+
+        if (locationResult.city) {
+          const mileageResult = await fetchAverageMileage({ city: locationResult.city, country: locationResult.country });
+          if ('error' in mileageResult) {
+            console.error("Error in fetchAverageMileage:", mileageResult.error);
+          } else if (mileageResult.averageMileage) {
+            form.setValue('averageAnnualMileage', mileageResult.averageMileage, { shouldValidate: true });
+            toast({
+              title: 'Suggerimento',
+              description: `Chilometraggio medio annuo per la tua zona impostato a ${mileageResult.averageMileage.toLocaleString('it-IT')} km.`,
+            });
+          }
+        }
+        setIsFetchingSuggestion(false);
+      };
+      
+      navigator.geolocation.getCurrentPosition(
+        getSuggestion,
+        () => setIsFetchingSuggestion(false),
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
       );
     }

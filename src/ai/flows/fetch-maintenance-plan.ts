@@ -27,8 +27,12 @@ const MaintenancePlanOutputSchema = z.array(MaintenanceCheckSchema);
 export type MaintenancePlanOutput = z.infer<typeof MaintenancePlanOutputSchema>;
 
 
-export async function fetchMaintenancePlan(input: MaintenancePlanInput): Promise<MaintenancePlanOutput> {
-  return fetchMaintenancePlanFlow(input);
+export async function fetchMaintenancePlan(input: MaintenancePlanInput): Promise<MaintenancePlanOutput | { error: string }> {
+  try {
+    return await fetchMaintenancePlanFlow(input);
+  } catch(e: any) {
+    return { error: e.message };
+  }
 }
 
 const prompt = ai.definePrompt({

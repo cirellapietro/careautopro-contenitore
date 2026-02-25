@@ -23,8 +23,12 @@ const ReverseGeocodeOutputSchema = z.object({
 });
 export type ReverseGeocodeOutput = z.infer<typeof ReverseGeocodeOutputSchema>;
 
-export async function reverseGeocode(input: ReverseGeocodeInput): Promise<ReverseGeocodeOutput> {
-  return reverseGeocodeFlow(input);
+export async function reverseGeocode(input: ReverseGeocodeInput): Promise<ReverseGeocodeOutput | { error: string }> {
+  try {
+    return await reverseGeocodeFlow(input);
+  } catch(e: any) {
+    return { error: e.message };
+  }
 }
 
 const prompt = ai.definePrompt({

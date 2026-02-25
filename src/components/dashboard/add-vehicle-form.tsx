@@ -177,44 +177,45 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
   // Fetch location-based mileage suggestion
   useEffect(() => {
     if (open && navigator.geolocation && permissionStatus === 'granted' && !cityAverageMileage) {
-      setIsFetchingSuggestion(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords;
-            const location = await reverseGeocode({ latitude, longitude });
-            if (location?.city) {
-              const mileageData = await fetchAverageMileage({ city: location.city, country: location.country });
-              if (mileageData?.averageMileage) {
-                setCityAverageMileage(mileageData.averageMileage);
-              }
-            }
-          } catch (error: any) {
-            console.error("Error fetching mileage suggestion:", error);
-            if (error.message && (error.message.includes('Generative Language API') || error.message.includes('403 Forbidden'))) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Funzione AI disabilitata',
-                    description: 'Abilita l\'API Generative Language nella console Google Cloud per ricevere suggerimenti automatici.',
-                    duration: 10000,
-                });
+        const getSuggestion = async (position: GeolocationPosition) => {
+          setIsFetchingSuggestion(true);
+          const { latitude, longitude } = position.coords;
+          const locationResult = await reverseGeocode({ latitude, longitude });
+
+          if ('error' in locationResult) {
+            if (locationResult.error.includes('Generative Language API')) {
+              toast({
+                  variant: 'destructive',
+                  title: 'Funzione AI disabilitata',
+                  description: 'Abilita l\'API Generative Language nella console Google Cloud per ricevere suggerimenti automatici.',
+                  duration: 10000,
+              });
             } else {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Errore Assistente AI',
-                    description: "Impossibile recuperare il suggerimento per il chilometraggio.",
-                    duration: 8000,
+                toast({
+                  variant: 'destructive',
+                  title: 'Errore Assistente AI',
+                  description: "Impossibile recuperare la località.",
+                  duration: 8000,
                 });
             }
-          } finally {
-            setIsFetchingSuggestion(false);
+          } else if (locationResult.city) {
+              const mileageResult = await fetchAverageMileage({ city: locationResult.city, country: locationResult.country });
+              if ('error' in mileageResult) {
+                // Silently fail, user can still input manually.
+              } else if (mileageResult.averageMileage) {
+                setCityAverageMileage(mileageResult.averageMileage);
+              }
           }
-        },
-        () => {
           setIsFetchingSuggestion(false);
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
-      );
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            getSuggestion,
+            () => {
+              setIsFetchingSuggestion(false);
+            },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
+        );
     }
   }, [open, permissionStatus, cityAverageMileage, toast]);
 
@@ -302,36 +303,10 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         });
 
         // AI part
-        try {
-            const aiChecks = await fetchMaintenancePlan({ make, model });
-            
-            if (aiChecks && aiChecks.length > 0) {
-                const aiBatch = writeBatch(firestore);
-                const existingDescriptions = new Set(genericChecks.map(c => c.description.toLowerCase()));
-
-                for (const check of aiChecks) {
-                    if (existingDescriptions.has(check.description.toLowerCase())) continue;
-
-                    const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
-                    aiBatch.set(newInterventionRef, {
-                        id: newInterventionRef.id,
-                        vehicleId: newVehicleRef.id,
-                        description: check.description,
-                        status: 'Pianificato',
-                        urgency: 'Media',
-                        notes: `Suggerito dall'AI per ${make} ${model}. Verifica la corrispondenza con il libretto di manutenzione.`,
-                        dataoraelimina: null,
-                    });
-                }
-                await aiBatch.commit();
-                toast({
-                    title: 'Suggerimenti AI aggiunti!',
-                    description: 'Aggiunti controlli di manutenzione specifici per il tuo modello.',
-                });
-            }
-        } catch (aiError: any) {
-            console.error("Error fetching AI maintenance plan:", aiError);
-            if (aiError.message && (aiError.message.includes('Generative Language API') || aiError.message.includes('403 Forbidden'))) {
+        const aiChecksResult = await fetchMaintenancePlan({ make, model });
+        
+        if ('error' in aiChecksResult) {
+            if (aiChecksResult.error.includes('Generative Language API')) {
                 toast({
                     variant: 'destructive',
                     title: 'Funzione AI disabilitata',
@@ -345,6 +320,29 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                   description: "Impossibile recuperare i controlli suggeriti.",
                 });
             }
+        } else if (aiChecksResult && aiChecksResult.length > 0) {
+            const aiBatch = writeBatch(firestore);
+            const existingDescriptions = new Set(genericChecks.map(c => c.description.toLowerCase()));
+
+            for (const check of aiChecksResult) {
+                if (existingDescriptions.has(check.description.toLowerCase())) continue;
+
+                const newInterventionRef = doc(collection(newVehicleRef, 'maintenanceInterventions'));
+                aiBatch.set(newInterventionRef, {
+                    id: newInterventionRef.id,
+                    vehicleId: newVehicleRef.id,
+                    description: check.description,
+                    status: 'Pianificato',
+                    urgency: 'Media',
+                    notes: `Suggerito dall'AI per ${make} ${model}. Verifica la corrispondenza con il libretto di manutenzione.`,
+                    dataoraelimina: null,
+                });
+            }
+            await aiBatch.commit();
+            toast({
+                title: 'Suggerimenti AI aggiunti!',
+                description: 'Aggiunti controlli di manutenzione specifici per il tuo modello.',
+            });
         }
         
         setNewVehicleId(newVehicleRef.id);
