@@ -68,9 +68,19 @@ const fetchMaintenancePlanFlow = ai.defineFlow(
     outputSchema: MaintenancePlanOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    // The model might sometimes return an empty array or null if it can't find info.
-    // We'll return an empty array in that case to prevent errors downstream.
-    return output || [];
+    try {
+        const { output } = await prompt(input);
+        // The model might sometimes return an empty array or null if it can't find info.
+        // We'll return an empty array in that case to prevent errors downstream.
+        return output || [];
+    } catch (e: any) {
+        // Log the detailed error on the server for debugging
+        console.error(`Genkit flow 'fetchMaintenancePlanFlow' failed: ${e.message}`);
+        // Throw a simpler, client-safe error to prevent server crashes and be caught by the UI
+        if (e.message?.includes('Generative Language API has not been used')) {
+            throw new Error("Generative Language API not enabled.");
+        }
+        throw new Error('An unexpected error occurred while fetching the maintenance plan.');
+    }
   }
 );
