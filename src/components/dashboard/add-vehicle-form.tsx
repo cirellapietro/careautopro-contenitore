@@ -191,12 +191,19 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
             }
           } catch (error: any) {
             console.error("Error fetching mileage suggestion:", error);
-            if (error.message && error.message.includes('Generative Language API has not been used')) {
+            if (error.message && (error.message.includes('Generative Language API') || error.message.includes('403 Forbidden'))) {
                 toast({
                     variant: 'destructive',
                     title: 'Funzione AI disabilitata',
                     description: 'Abilita l\'API Generative Language nella console Google Cloud per ricevere suggerimenti automatici.',
                     duration: 10000,
+                });
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Errore Assistente AI',
+                    description: "Impossibile recuperare il suggerimento per il chilometraggio.",
+                    duration: 8000,
                 });
             }
           } finally {
@@ -324,7 +331,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
             }
         } catch (aiError: any) {
             console.error("Error fetching AI maintenance plan:", aiError);
-            if (aiError.message && aiError.message.includes('Generative Language API has not been used')) {
+            if (aiError.message && (aiError.message.includes('Generative Language API') || aiError.message.includes('403 Forbidden'))) {
                 toast({
                     variant: 'destructive',
                     title: 'Funzione AI disabilitata',

@@ -48,16 +48,7 @@ function VehicleTypeDetailContent() {
     return doc(firestore, 'vehicleTypes', vehicleTypeId);
   }, [firestore, vehicleTypeId, isNew]);
 
-  const { data: vehicleType, isLoading: vtLoading, error: vtError, setError: setVtError } = useDoc<VehicleType>(vtRef, {
-    onUpdate: (data) => {
-        if (data) {
-            form.reset({
-                name: data.name || '',
-                averageAnnualMileage: data.averageAnnualMileage || 10000,
-            });
-        }
-    }
-  });
+  const { data: vehicleType, isLoading: vtLoading } = useDoc<VehicleType>(vtRef);
 
   const checksQuery = useMemo(() => {
     if (isNew || !firestore || !vehicleTypeId) return null;
@@ -109,12 +100,19 @@ function VehicleTypeDetailContent() {
             }
           } catch (error: any) {
             console.error("Error fetching mileage suggestion:", error);
-            if (error.message && error.message.includes('Generative Language API has not been used')) {
+            if (error.message && (error.message.includes('Generative Language API') || error.message.includes('403 Forbidden'))) {
                 toast({
                     variant: 'destructive',
                     title: 'Azione richiesta: Abilita API',
                     description: 'L\'API per l\'IA generativa non è attiva. Abilitala nella tua Google Cloud console per usare questa funzione.',
                     duration: 10000,
+                });
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Errore Assistente AI',
+                    description: "Impossibile recuperare il suggerimento per il chilometraggio.",
+                    duration: 8000,
                 });
             }
           } finally {
