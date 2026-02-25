@@ -48,7 +48,16 @@ function VehicleTypeDetailContent() {
     return doc(firestore, 'vehicleTypes', vehicleTypeId);
   }, [firestore, vehicleTypeId, isNew]);
 
-  const { data: vehicleType, isLoading: vtLoading } = useDoc<VehicleType>(vtRef);
+  const { data: vehicleType, isLoading: vtLoading, error: vtError, setError: setVtError } = useDoc<VehicleType>(vtRef, {
+    onUpdate: (data) => {
+        if (data) {
+            form.reset({
+                name: data.name || '',
+                averageAnnualMileage: data.averageAnnualMileage || 10000,
+            });
+        }
+    }
+  });
 
   const checksQuery = useMemo(() => {
     if (isNew || !firestore || !vehicleTypeId) return null;
@@ -67,15 +76,17 @@ function VehicleTypeDetailContent() {
       averageAnnualMileage: 10000,
     },
   });
+  
+  const { reset } = form;
 
   useEffect(() => {
     if (vehicleType) {
-      form.reset({
+      reset({
         name: vehicleType.name || '',
         averageAnnualMileage: vehicleType.averageAnnualMileage || 10000,
       });
     }
-  }, [vehicleType, form.reset]);
+  }, [vehicleType, reset]);
 
   // Fetch location-based mileage suggestion
   useEffect(() => {
@@ -96,8 +107,16 @@ function VehicleTypeDetailContent() {
                 });
               }
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error("Error fetching mileage suggestion:", error);
+            if (error.message && error.message.includes('Generative Language API has not been used')) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Azione richiesta: Abilita API',
+                    description: 'L\'API per l\'IA generativa non è attiva. Abilitala nella tua Google Cloud console per usare questa funzione.',
+                    duration: 10000,
+                });
+            }
           } finally {
             setIsFetchingSuggestion(false);
           }
@@ -108,7 +127,7 @@ function VehicleTypeDetailContent() {
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
       );
     }
-  }, [isNew, permissionStatus, form.setValue, toast]);
+  }, [isNew, permissionStatus, form, toast]);
 
   const handleDeleteCheck = () => {
     if (!checkToDelete || !firestore || !vehicleTypeId) return;
@@ -235,11 +254,12 @@ function VehicleTypeDetailContent() {
                 )}
               />
             </CardContent>
-            <CardFooter>
+            <CardFooter className="gap-2">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isNew ? 'Crea Tipo Veicolo' : 'Salva Modifiche'}
               </Button>
+              <Button type="button" variant="outline" onClick={() => router.back()}>Annulla</Button>
             </CardFooter>
           </form>
         </Form>

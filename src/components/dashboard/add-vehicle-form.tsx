@@ -189,8 +189,16 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                 setCityAverageMileage(mileageData.averageMileage);
               }
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error("Error fetching mileage suggestion:", error);
+            if (error.message && error.message.includes('Generative Language API has not been used')) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Funzione AI disabilitata',
+                    description: 'Abilita l\'API Generative Language nella console Google Cloud per ricevere suggerimenti automatici.',
+                    duration: 10000,
+                });
+            }
           } finally {
             setIsFetchingSuggestion(false);
           }
@@ -201,7 +209,7 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 60 }
       );
     }
-  }, [open, permissionStatus, cityAverageMileage]);
+  }, [open, permissionStatus, cityAverageMileage, toast]);
 
   const suggestedCurrentMileage = useMemo(() => {
     if (!cityAverageMileage || !registrationDate) return null;
@@ -314,13 +322,22 @@ export function AddVehicleForm({ open, onOpenChange }: AddVehicleFormProps) {
                     description: 'Aggiunti controlli di manutenzione specifici per il tuo modello.',
                 });
             }
-        } catch (aiError) {
+        } catch (aiError: any) {
             console.error("Error fetching AI maintenance plan:", aiError);
-            toast({
-              variant: 'destructive',
-              title: 'Errore Assistente AI',
-              description: "Impossibile recuperare i controlli suggeriti.",
-            });
+            if (aiError.message && aiError.message.includes('Generative Language API has not been used')) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Funzione AI disabilitata',
+                    description: 'Il piano di manutenzione specifico non può essere generato. Abilita l\'API Generative Language nella console Google Cloud.',
+                    duration: 10000,
+                });
+            } else {
+                toast({
+                  variant: 'destructive',
+                  title: 'Errore Assistente AI',
+                  description: "Impossibile recuperare i controlli suggeriti.",
+                });
+            }
         }
         
         setNewVehicleId(newVehicleRef.id);
