@@ -1,3 +1,4 @@
+
 'use client';
 
 import { type Vehicle } from '@/lib/types';
@@ -43,7 +44,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     isStopping,
     permissionStatus,
     switchTrackingTo,
-    sessionDistance,
+    liveSessionDistance,
     sessionDuration,
   } = useTracking();
 
@@ -60,7 +61,9 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     : 'N/D';
 
   const baseMileage = typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0;
-  const liveMileage = isThisVehicleBeingTracked ? baseMileage + sessionDistance : baseMileage;
+  // Usiamo liveSessionDistance (distanza percorsa non ancora sincronizzata nel DB)
+  // Questo evita il doppio conteggio quando il DB viene aggiornato ma la sessione è ancora attiva.
+  const displayMileage = isThisVehicleBeingTracked ? baseMileage + liveSessionDistance : baseMileage;
 
   const handleCardClick = () => {
     router.push(`/dashboard/vehicles/view?id=${vehicle.id}`);
@@ -104,7 +107,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
                 <PlayCircle className="mr-2 h-4 w-4" /> Attiva Tracking KM/Tempo
             </Button>
             <p className="text-xs text-muted-foreground text-center px-2">
-              Il tracking calcola distanza e tempo d'uso. La tua posizione geografica non viene salvata.
+              Il tracking aggiorna i chilometri nel database ogni 500 metri.
             </p>
         </div>
       );
@@ -146,7 +149,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
                         "font-bold text-lg", 
                         isThisVehicleBeingTracked ? "text-primary animate-pulse" : "text-foreground"
                     )}>
-                        {liveMileage.toLocaleString('it-IT', { maximumFractionDigits: 2 })} km
+                        {displayMileage.toLocaleString('it-IT', { maximumFractionDigits: 2 })} km
                     </span>
                 </div>
                 
@@ -154,7 +157,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
                     <div className="mt-2 space-y-1 text-xs">
                         <p className="flex items-center gap-2">
                             <Gauge className="h-3 w-3 text-primary" /> 
-                            Sessione: <span className="font-semibold text-foreground">{sessionDistance.toFixed(2)} km</span>
+                            Sessione: <span className="font-semibold text-foreground">{(liveSessionDistance + (isThisVehicleBeingTracked ? (vehicle.currentMileage - baseMileage) : 0)).toFixed(2)} km</span>
                         </p>
                         <p className="flex items-center gap-2">
                             <Timer className="h-3 w-3 text-primary" /> 

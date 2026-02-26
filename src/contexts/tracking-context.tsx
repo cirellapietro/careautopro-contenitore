@@ -25,6 +25,7 @@ interface TrackingContextType {
   vehicles: Vehicle[];
   sessionDistance: number;
   sessionDuration: number; // in seconds
+  liveSessionDistance: number; // Distanza percorsa non ancora sincronizzata nel DB
 }
 
 const TrackingContext = createContext<TrackingContextType | undefined>(undefined);
@@ -41,11 +42,13 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     
     const [sessionDistance, setSessionDistance] = useState(0);
     const [sessionDuration, setSessionDuration] = useState(0);
+    const [syncedDistance, setSyncedDistance] = useState(0); // Quanti km di questa sessione sono già finiti nel DB
 
     const watchIdRef = useRef<number | null>(null);
     const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const lastPositionRef = useRef<GeolocationCoordinates | null>(null);
     const distanceRef = useRef(0);
+    const syncedDistanceRef = useRef(0);
     const startTimeRef = useRef<Date | null>(null);
 
     // Fetch vehicles from Firestore
@@ -60,7 +63,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         if (user?.uid) {
             const userId = user.uid;
             
-            // Load selected vehicle ID
             const savedId = localStorage.getItem(`trackedVehicleId_${userId}`);
             if (savedId) {
                 try {
@@ -70,7 +72,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            // Load tracking session data from localStorage (immediate UI feedback)
             const isTrackingSaved = localStorage.getItem(`isTracking_${userId}`) === 'true';
             const distanceSaved = localStorage.getItem(`sessionDistance_${userId}`);
             const startSaved = localStorage.getItem(`startTime_${userId}`);
@@ -99,13 +100,9 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         if (user?.uid && vehicles && permissionStatus === 'granted' && !isTracking) {
             const vehicleToTrack = vehicles.find(v => v.trackingGPS === true);
             if (vehicleToTrack) {
-                // If found in Firestore, ensure local state is updated and start tracking
                 _setTrackedVehicleId(vehicleToTrack.id);
                 localStorage.setItem(`trackedVehicleId_${user.uid}`, JSON.stringify(vehicleToTrack.id));
-                
-                // Wait a tiny bit to ensure state is settled before starting GPS
                 const timer = setTimeout(() => {
-                    // startTracking will handle the rest
                     startTracking(vehicleToTrack.id);
                 }, 500);
                 return () => clearTimeout(timer);
@@ -113,12 +110,15 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         }
     }, [vehicles, permissionStatus, isTracking, user?.uid]);
 
-    // Persist session distance periodically to localStorage
-    useEffect(() => {
-        if (user?.uid && isTracking) {
-            localStorage.setItem(`sessionDistance_${user.uid}`, distanceRef.current.toString());
-        }
-    }, [sessionDistance, isTracking, user?.uid]);
+    // Funzione per sincronizzare i chilometri nel DB periodicamente
+    const syncMileageToDb = useCallback((vehicleId: string, delta: number) => {
+        if (!user || !firestore || delta <= 0) return;
+        
+        const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, vehicleId);
+        updateDoc(vehicleRef, { currentMileage: increment(delta) }).catch(err => {
+            console.error("Errore durante la sincronizzazione dei chilometri:", err);
+        });
+    }, [user, firestore]);
 
     const setTrackedVehicleId = useCallback((id: string | null) => {
         _setTrackedVehicleId(id);
@@ -141,10 +141,12 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             watchIdRef.current = null;
         }
         distanceRef.current = 0;
+        syncedDistanceRef.current = 0;
         lastPositionRef.current = null;
         startTimeRef.current = null;
         setSessionDistance(0);
         setSessionDuration(0);
+        setSyncedDistance(0);
 
         if (user?.uid) {
             localStorage.removeItem(`isTracking_${user.uid}`);
@@ -157,25 +159,22 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         const idToTrack = vehicleIdOverride || trackedVehicleId;
         
         if (permissionStatus !== 'granted' || !idToTrack || !user || !firestore) {
-            toast({ variant: 'destructive', title: 'Errore', description: 'Permessi GPS non concessi o nessun veicolo selezionato.' });
             return;
         }
 
-        // 1. Update Firestore state
         const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, idToTrack);
         updateDoc(vehicleRef, { trackingGPS: true }).catch(err => {
             console.error("Failed to update trackingGPS status in Firestore:", err);
         });
 
-        // 2. Local session init logic
         if (!isTracking) {
-            // Only reset if we are starting a BRAND NEW session, 
-            // not if we are resuming after a refresh (startTimeRef will be set)
             if (!startTimeRef.current) {
                 startTimeRef.current = new Date();
                 distanceRef.current = 0;
+                syncedDistanceRef.current = 0;
                 setSessionDistance(0);
                 setSessionDuration(0);
+                setSyncedDistance(0);
             }
         }
 
@@ -191,7 +190,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        // 3. Start duration timer
         if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
         durationIntervalRef.current = setInterval(() => {
             if (startTimeRef.current) {
@@ -200,7 +198,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             }
         }, 1000);
 
-        // 4. Start position watcher
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
@@ -213,26 +210,35 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                     );
                     distanceRef.current += newDistance;
                     setSessionDistance(distanceRef.current);
+
+                    // Sincronizzazione automatica nel DB ogni 0.5 km percorsi
+                    const unsyncedDistance = distanceRef.current - syncedDistanceRef.current;
+                    if (unsyncedDistance >= 0.5) {
+                        syncMileageToDb(idToTrack, unsyncedDistance);
+                        syncedDistanceRef.current = distanceRef.current;
+                        setSyncedDistance(syncedDistanceRef.current);
+                    }
                 }
                 lastPositionRef.current = position.coords;
             },
             (error) => {
                 toast({ variant: 'destructive', title: 'Errore GPS', description: error.message });
                 setIsTracking(false);
-                // On critical GPS error, we don't reset Firestore trackingGPS yet to allow retry
                 if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
                 if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [permissionStatus, trackedVehicleId, toast, setTrackedVehicleId, isTracking, user, firestore]);
+    }, [permissionStatus, trackedVehicleId, toast, setTrackedVehicleId, isTracking, user, firestore, syncMileageToDb]);
 
     const stopTracking = useCallback(async () => {
         setIsStopping(true);
         const trackedDistance = distanceRef.current;
         const trackedDuration = startTimeRef.current ? (Date.now() - startTimeRef.current.getTime()) / 60000 : 0;
+        
+        // Quanta distanza è stata percorsa dall'ultima sincronizzazione periodica
+        const finalUnsyncedDistance = trackedDistance - syncedDistanceRef.current;
 
-        // Visual stop first
         setIsTracking(false);
         if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -243,7 +249,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        // 1. Always reset Firestore flag first
         const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, trackedVehicleId);
         await updateDoc(vehicleRef, { trackingGPS: false }).catch(err => {
             console.error("Failed to reset trackingGPS status in Firestore:", err);
@@ -252,11 +257,8 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         if (trackedDistance <= 0.005) {
             resetTrackingState();
             setIsStopping(false);
-            if (trackedDistance > 0) toast({ title: 'Sessione troppo breve', description: 'Nessun dato salvato (minimo 5 metri).' });
             return;
         }
-
-        toast({ title: 'Salvataggio sessione...', description: `Distanza: ${trackedDistance.toFixed(2)} km` });
 
         try {
             const batch = writeBatch(firestore);
@@ -272,9 +274,12 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                 dataoraelimina: null,
             });
             
-            batch.update(vehicleRef, {
-                currentMileage: increment(trackedDistance)
-            });
+            // Sincronizziamo solo la parte finale non ancora inviata al DB
+            if (finalUnsyncedDistance > 0) {
+                batch.update(vehicleRef, {
+                    currentMileage: increment(finalUnsyncedDistance)
+                });
+            }
 
             const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
             const dailyStatRef = doc(collection(vehicleRef, 'dailyStatistics'), todayStr);
@@ -297,7 +302,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             }
 
             await batch.commit();
-            toast({ title: 'Sessione salvata!', description: 'Chilometraggio e statistiche aggiornate.' });
+            toast({ title: 'Sessione salvata!', description: 'Il chilometraggio è stato aggiornato nel database.' });
         } catch (e: any) {
             const permissionError = new FirestorePermissionError({
                 path: `users/${user.uid}/vehicles/${trackedVehicleId}`,
@@ -348,7 +353,8 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         vehicles: vehicles || [],
         sessionDistance,
         sessionDuration,
-    }), [permissionStatus, isTracking, isStopping, trackedVehicleId, setTrackedVehicleId, startTracking, stopTracking, switchTrackingTo, trackedVehicle, vehicles, sessionDistance, sessionDuration]);
+        liveSessionDistance: sessionDistance - syncedDistance,
+    }), [permissionStatus, isTracking, isStopping, trackedVehicleId, setTrackedVehicleId, startTracking, stopTracking, switchTrackingTo, trackedVehicle, vehicles, sessionDistance, sessionDuration, syncedDistance]);
 
     return (
         <TrackingContext.Provider value={value}>
