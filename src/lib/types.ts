@@ -1,3 +1,4 @@
+
 export type NotificationChannel = 'app' | 'email' | 'sms' | 'whatsapp' | 'telegram' | 'facebook';
 
 export type User = {
@@ -52,6 +53,7 @@ export type Vehicle = {
   createdAt?: string;
   dataoraelimina?: string | null;
   isTaxi?: boolean;
+  trackingGPS?: boolean;
 };
 
 export type MaintenanceIntervention = {

@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -102,6 +103,10 @@
         "isTaxi": {
           "type": "boolean",
           "description": "Indicates if the vehicle is used as a taxi."
+        },
+        "trackingGPS": {
+          "type": "boolean",
+          "description": "Indicates if the GPS tracking is currently active for this vehicle."
         },
         "dataoraelimina": {
           "type": "string",

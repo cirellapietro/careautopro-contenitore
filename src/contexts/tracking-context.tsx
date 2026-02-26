@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, getDoc, writeBatch, increment } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, increment, updateDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDistance } from '@/lib/utils';
 import type { Vehicle } from '@/lib/types';
@@ -47,9 +48,10 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     const distanceRef = useRef(0);
     const startTimeRef = useRef<Date | null>(null);
 
+    // Fetch vehicles from Firestore
     const vehiclesQuery = useMemo(() => {
         if (!user || !firestore) return null;
-        return collection(firestore, `users/${user.uid}/vehicles`);
+        return query(collection(firestore, `users/${user.uid}/vehicles`), where('dataoraelimina', '==', null));
     }, [user, firestore]);
     const { data: vehicles } = useCollection<Vehicle>(vehiclesQuery);
     
@@ -68,7 +70,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            // Load tracking state and session data
+            // Load tracking session data from localStorage (immediate UI feedback)
             const isTrackingSaved = localStorage.getItem(`isTracking_${userId}`) === 'true';
             const distanceSaved = localStorage.getItem(`sessionDistance_${userId}`);
             const startSaved = localStorage.getItem(`startTime_${userId}`);
@@ -91,6 +93,25 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             }
         }
     }, [user?.uid]);
+
+    // Persistent GPS restart based on Firestore 'trackingGPS' field
+    useEffect(() => {
+        if (user?.uid && vehicles && permissionStatus === 'granted' && !isTracking) {
+            const vehicleToTrack = vehicles.find(v => v.trackingGPS === true);
+            if (vehicleToTrack) {
+                // If found in Firestore, ensure local state is updated and start tracking
+                _setTrackedVehicleId(vehicleToTrack.id);
+                localStorage.setItem(`trackedVehicleId_${user.uid}`, JSON.stringify(vehicleToTrack.id));
+                
+                // Wait a tiny bit to ensure state is settled before starting GPS
+                const timer = setTimeout(() => {
+                    // startTracking will handle the rest
+                    startTracking(vehicleToTrack.id);
+                }, 500);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [vehicles, permissionStatus, isTracking, user?.uid]);
 
     // Persist session distance periodically to localStorage
     useEffect(() => {
@@ -135,17 +156,27 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     const startTracking = useCallback((vehicleIdOverride?: string) => {
         const idToTrack = vehicleIdOverride || trackedVehicleId;
         
-        if (permissionStatus !== 'granted' || !idToTrack) {
+        if (permissionStatus !== 'granted' || !idToTrack || !user || !firestore) {
             toast({ variant: 'destructive', title: 'Errore', description: 'Permessi GPS non concessi o nessun veicolo selezionato.' });
             return;
         }
 
-        // Clean start logic
+        // 1. Update Firestore state
+        const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, idToTrack);
+        updateDoc(vehicleRef, { trackingGPS: true }).catch(err => {
+            console.error("Failed to update trackingGPS status in Firestore:", err);
+        });
+
+        // 2. Local session init logic
         if (!isTracking) {
-            startTimeRef.current = new Date();
-            distanceRef.current = 0;
-            setSessionDistance(0);
-            setSessionDuration(0);
+            // Only reset if we are starting a BRAND NEW session, 
+            // not if we are resuming after a refresh (startTimeRef will be set)
+            if (!startTimeRef.current) {
+                startTimeRef.current = new Date();
+                distanceRef.current = 0;
+                setSessionDistance(0);
+                setSessionDuration(0);
+            }
         }
 
         setIsTracking(true);
@@ -155,10 +186,12 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
 
         if (user?.uid) {
             localStorage.setItem(`isTracking_${user.uid}`, 'true');
-            localStorage.setItem(`startTime_${user.uid}`, startTimeRef.current!.toISOString());
+            if (startTimeRef.current) {
+                localStorage.setItem(`startTime_${user.uid}`, startTimeRef.current.toISOString());
+            }
         }
 
-        // Start duration timer
+        // 3. Start duration timer
         if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
         durationIntervalRef.current = setInterval(() => {
             if (startTimeRef.current) {
@@ -167,7 +200,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             }
         }, 1000);
 
-        // Start position watcher
+        // 4. Start position watcher
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
@@ -186,18 +219,13 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             (error) => {
                 toast({ variant: 'destructive', title: 'Errore GPS', description: error.message });
                 setIsTracking(false);
-                resetTrackingState();
+                // On critical GPS error, we don't reset Firestore trackingGPS yet to allow retry
+                if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
+                if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [permissionStatus, trackedVehicleId, toast, resetTrackingState, setTrackedVehicleId, isTracking, user?.uid]);
-
-    // Resume tracking if it was active when permission is granted
-    useEffect(() => {
-        if (permissionStatus === 'granted' && isTracking && watchIdRef.current === null) {
-            startTracking();
-        }
-    }, [permissionStatus, isTracking, startTracking]);
+    }, [permissionStatus, trackedVehicleId, toast, setTrackedVehicleId, isTracking, user, firestore]);
 
     const stopTracking = useCallback(async () => {
         setIsStopping(true);
@@ -209,7 +237,19 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
 
-        if (!user || !firestore || !trackedVehicleId || trackedDistance <= 0.005) {
+        if (!user || !firestore || !trackedVehicleId) {
+            resetTrackingState();
+            setIsStopping(false);
+            return;
+        }
+
+        // 1. Always reset Firestore flag first
+        const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, trackedVehicleId);
+        await updateDoc(vehicleRef, { trackingGPS: false }).catch(err => {
+            console.error("Failed to reset trackingGPS status in Firestore:", err);
+        });
+
+        if (trackedDistance <= 0.005) {
             resetTrackingState();
             setIsStopping(false);
             if (trackedDistance > 0) toast({ title: 'Sessione troppo breve', description: 'Nessun dato salvato (minimo 5 metri).' });
@@ -220,7 +260,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
 
         try {
             const batch = writeBatch(firestore);
-            const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, trackedVehicleId);
 
             const sessionRef = doc(collection(vehicleRef, 'trackingSessions'));
             batch.set(sessionRef, {
