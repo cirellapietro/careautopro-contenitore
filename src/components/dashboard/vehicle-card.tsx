@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { type Vehicle } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +59,8 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     ? new Date(vehicle.lastMaintenanceDate).toLocaleDateString('it-IT')
     : 'N/D';
 
-  const mileage = typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0;
+  const baseMileage = typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0;
+  const liveMileage = isThisVehicleBeingTracked ? baseMileage + sessionDistance : baseMileage;
 
   const handleCardClick = () => {
     router.push(`/dashboard/vehicles/view?id=${vehicle.id}`);
@@ -140,23 +140,32 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
             <CardDescription>{vehicle.make} {vehicle.model} - {registrationYear}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 p-6 pt-0">
-            {isThisVehicleBeingTracked ? (
-                <div className="border-t pt-4 text-sm text-muted-foreground">
-                    <p className="flex items-center gap-2">
-                        <Gauge className="h-4 w-4 text-primary animate-pulse" /> 
-                        Distanza sessione: <span className="font-semibold text-foreground">{sessionDistance.toFixed(2)} km</span>
-                    </p>
-                    <p className="mt-1 flex items-center gap-2">
-                        <Timer className="h-4 w-4 text-primary animate-pulse" /> 
-                        Tempo trascorso: <span className="font-semibold text-foreground">{formatDuration(sessionDuration)}</span>
-                    </p>
+            <div className="border-t pt-4 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between">
+                    <span>Chilometraggio:</span>
+                    <span className={cn(
+                        "font-bold text-lg", 
+                        isThisVehicleBeingTracked ? "text-primary animate-pulse" : "text-foreground"
+                    )}>
+                        {liveMileage.toLocaleString('it-IT', { maximumFractionDigits: 2 })} km
+                    </span>
                 </div>
-            ) : (
-                <div className="border-t pt-4 text-sm text-muted-foreground">
-                <p>Chilometraggio: <span className="font-semibold text-foreground">{mileage.toLocaleString('it-IT')} km</span></p>
-                <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
-                </div>
-            )}
+                
+                {isThisVehicleBeingTracked ? (
+                    <div className="mt-2 space-y-1 text-xs">
+                        <p className="flex items-center gap-2">
+                            <Gauge className="h-3 w-3 text-primary" /> 
+                            Sessione: <span className="font-semibold text-foreground">{sessionDistance.toFixed(2)} km</span>
+                        </p>
+                        <p className="flex items-center gap-2">
+                            <Timer className="h-3 w-3 text-primary" /> 
+                            Tempo: <span className="font-semibold text-foreground">{formatDuration(sessionDuration)}</span>
+                        </p>
+                    </div>
+                ) : (
+                    <p className="mt-1">Ultima manutenzione: <span className="font-semibold text-foreground">{lastMaintenance}</span></p>
+                )}
+            </div>
         </CardContent>
         <CardFooter className="p-4 pt-0">
             {renderFooter()}

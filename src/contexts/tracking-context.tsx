@@ -5,7 +5,6 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, getDoc, writeBatch, increment, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import usePersistentState from '@/hooks/use-persistent-state';
 import { calculateDistance } from '@/lib/utils';
 import type { Vehicle } from '@/lib/types';
 import { useCollection } from '@/firebase';
@@ -37,7 +36,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('prompt');
     const [isTracking, setIsTracking] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
-    const [trackedVehicleId, setTrackedVehicleId] = usePersistentState<string | null>('trackedVehicleId', null);
+    const [trackedVehicleId, _setTrackedVehicleId] = useState<string | null>(null);
     
     const [sessionDistance, setSessionDistance] = useState(0);
     const [sessionDuration, setSessionDuration] = useState(0); // in seconds
@@ -54,6 +53,28 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     }, [user, firestore]);
     const { data: vehicles } = useCollection<Vehicle>(vehiclesQuery);
     
+    // Persist trackedVehicleId per user
+    useEffect(() => {
+        if (user?.uid) {
+            const key = `trackedVehicleId_${user.uid}`;
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                try {
+                    _setTrackedVehicleId(JSON.parse(saved));
+                } catch {
+                    _setTrackedVehicleId(saved);
+                }
+            }
+        }
+    }, [user?.uid]);
+
+    const setTrackedVehicleId = useCallback((id: string | null) => {
+        _setTrackedVehicleId(id);
+        if (user?.uid) {
+            localStorage.setItem(`trackedVehicleId_${user.uid}`, JSON.stringify(id));
+        }
+    }, [user?.uid]);
+
     const trackedVehicle = useMemo(() => {
         return vehicles?.find(v => v.id === trackedVehicleId) || null;
     }, [vehicles, trackedVehicleId]);
@@ -223,16 +244,18 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     }, [isTracking, stopTracking, startTracking]);
 
     useEffect(() => {
-        if ('permissions' in navigator) {
-            navigator.permissions.query({ name: 'geolocation' }).then(result => {
-                setPermissionStatus(result.state);
-                result.onchange = () => setPermissionStatus(result.state);
-            });
-        } else {
-             navigator.geolocation.getCurrentPosition(
-                () => setPermissionStatus('granted'),
-                () => setPermissionStatus('denied')
-            );
+        if (typeof window !== 'undefined') {
+            if ('permissions' in navigator) {
+                navigator.permissions.query({ name: 'geolocation' as any }).then(result => {
+                    setPermissionStatus(result.state as PermissionStatus);
+                    result.onchange = () => setPermissionStatus(result.state as PermissionStatus);
+                });
+            } else {
+                 navigator.geolocation.getCurrentPosition(
+                    () => setPermissionStatus('granted'),
+                    () => setPermissionStatus('denied')
+                );
+            }
         }
     }, []);
 
