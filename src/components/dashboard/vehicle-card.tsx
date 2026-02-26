@@ -67,7 +67,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   }
 
   const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
-    e.stopPropagation(); // Prevent card click event
+    e.stopPropagation();
     action();
   };
 
@@ -91,7 +91,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     if (isThisVehicleBeingTracked) {
       return (
         <Button onClick={(e) => handleButtonClick(e, stopTracking)} variant="destructive" className="w-full" disabled={isStopping}>
-          {isStopping ? <Loader2 className="animate-spin" /> : <StopCircle />}
+          {isStopping ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <StopCircle className="mr-2 h-4 w-4" />}
           Ferma Tracciamento
         </Button>
       );
@@ -101,10 +101,10 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
       return (
         <div className="w-full flex flex-col items-center gap-2">
             <Button onClick={(e) => handleButtonClick(e, startTracking)} className="w-full" disabled={!canStartTracking || isTracking}>
-                <PlayCircle /> Attiva Tracking KM/Tempo
+                <PlayCircle className="mr-2 h-4 w-4" /> Attiva Tracking KM/Tempo
             </Button>
             <p className="text-xs text-muted-foreground text-center px-2">
-              Il tracking calcola solo la distanza e il tempo d'uso per le scadenze. Le tue posizioni geografiche non vengono salvate né tracciate.
+              Il tracking calcola distanza e tempo d'uso. La tua posizione geografica non viene salvata.
             </p>
         </div>
       );
@@ -113,15 +113,14 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
     if (isTracking) {
        return (
             <Button onClick={(e) => handleButtonClick(e, () => switchTrackingTo(vehicle.id))} variant="outline" className="w-full">
-                <PlayCircle /> Traccia questo
+                <PlayCircle className="mr-2 h-4 w-4" /> Passa a questo veicolo
             </Button>
         );
     }
     
-    // Default case: This card is not selected, and no tracking is active.
     return (
-        <Button onClick={(e) => handleButtonClick(e, () => setTrackedVehicleId(vehicle.id))} variant="outline" className="w-full" disabled={isTracking}>
-            <CheckCircle2 /> Seleziona per tracciare
+        <Button onClick={(e) => handleButtonClick(e, () => setTrackedVehicleId(vehicle.id))} variant="outline" className="w-full">
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Seleziona per tracciare
         </Button>
     );
   }

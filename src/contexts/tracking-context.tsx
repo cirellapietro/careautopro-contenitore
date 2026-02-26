@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, getDoc, writeBatch, increment, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDistance } from '@/lib/utils';
 import type { Vehicle } from '@/lib/types';
@@ -39,7 +39,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     const [trackedVehicleId, _setTrackedVehicleId] = useState<string | null>(null);
     
     const [sessionDistance, setSessionDistance] = useState(0);
-    const [sessionDuration, setSessionDuration] = useState(0); // in seconds
+    const [sessionDuration, setSessionDuration] = useState(0);
 
     const watchIdRef = useRef<number | null>(null);
     const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -53,20 +53,51 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     }, [user, firestore]);
     const { data: vehicles } = useCollection<Vehicle>(vehiclesQuery);
     
-    // Persist trackedVehicleId per user
+    // Initial load from localStorage
     useEffect(() => {
         if (user?.uid) {
-            const key = `trackedVehicleId_${user.uid}`;
-            const saved = localStorage.getItem(key);
-            if (saved) {
+            const userId = user.uid;
+            
+            // Load selected vehicle ID
+            const savedId = localStorage.getItem(`trackedVehicleId_${userId}`);
+            if (savedId) {
                 try {
-                    _setTrackedVehicleId(JSON.parse(saved));
+                    _setTrackedVehicleId(JSON.parse(savedId));
                 } catch {
-                    _setTrackedVehicleId(saved);
+                    _setTrackedVehicleId(savedId);
                 }
+            }
+
+            // Load tracking state and session data
+            const isTrackingSaved = localStorage.getItem(`isTracking_${userId}`) === 'true';
+            const distanceSaved = localStorage.getItem(`sessionDistance_${userId}`);
+            const startSaved = localStorage.getItem(`startTime_${userId}`);
+
+            if (distanceSaved) {
+                const d = parseFloat(distanceSaved);
+                distanceRef.current = d;
+                setSessionDistance(d);
+            }
+
+            if (startSaved) {
+                const startDate = new Date(startSaved);
+                startTimeRef.current = startDate;
+                const elapsed = Math.floor((Date.now() - startDate.getTime()) / 1000);
+                setSessionDuration(elapsed > 0 ? elapsed : 0);
+            }
+
+            if (isTrackingSaved) {
+                setIsTracking(true);
             }
         }
     }, [user?.uid]);
+
+    // Persist session distance periodically to localStorage
+    useEffect(() => {
+        if (user?.uid && isTracking) {
+            localStorage.setItem(`sessionDistance_${user.uid}`, distanceRef.current.toString());
+        }
+    }, [sessionDistance, isTracking, user?.uid]);
 
     const setTrackedVehicleId = useCallback((id: string | null) => {
         _setTrackedVehicleId(id);
@@ -93,39 +124,51 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
         startTimeRef.current = null;
         setSessionDistance(0);
         setSessionDuration(0);
-    }, []);
+
+        if (user?.uid) {
+            localStorage.removeItem(`isTracking_${user.uid}`);
+            localStorage.removeItem(`sessionDistance_${user.uid}`);
+            localStorage.removeItem(`startTime_${user.uid}`);
+        }
+    }, [user?.uid]);
 
     const startTracking = useCallback((vehicleIdOverride?: string) => {
         const idToTrack = vehicleIdOverride || trackedVehicleId;
-        const vehicleToTrack = vehicles?.find(v => v.id === idToTrack);
-
+        
         if (permissionStatus !== 'granted' || !idToTrack) {
             toast({ variant: 'destructive', title: 'Errore', description: 'Permessi GPS non concessi o nessun veicolo selezionato.' });
             return;
         }
 
-        if (isTracking) {
-            console.warn("Attempted to start tracking while a session is already active.");
-            return;
+        // Clean start logic
+        if (!isTracking) {
+            startTimeRef.current = new Date();
+            distanceRef.current = 0;
+            setSessionDistance(0);
+            setSessionDuration(0);
         }
-        
-        resetTrackingState(); // Ensure state is clean before starting
+
         setIsTracking(true);
         if (vehicleIdOverride) {
             setTrackedVehicleId(vehicleIdOverride);
         }
-        startTimeRef.current = new Date();
-        toast({ title: 'Tracciamento avviato!', description: `Veicolo: ${vehicleToTrack?.name}` });
+
+        if (user?.uid) {
+            localStorage.setItem(`isTracking_${user.uid}`, 'true');
+            localStorage.setItem(`startTime_${user.uid}`, startTimeRef.current!.toISOString());
+        }
 
         // Start duration timer
+        if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
         durationIntervalRef.current = setInterval(() => {
             if (startTimeRef.current) {
-                const elapsedSeconds = Math.floor((new Date().getTime() - startTimeRef.current.getTime()) / 1000);
+                const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
                 setSessionDuration(elapsedSeconds);
             }
         }, 1000);
 
         // Start position watcher
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 if (lastPositionRef.current) {
@@ -136,7 +179,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                         position.coords.longitude
                     );
                     distanceRef.current += newDistance;
-                    setSessionDistance(distanceRef.current); // Update state directly
+                    setSessionDistance(distanceRef.current);
                 }
                 lastPositionRef.current = position.coords;
             },
@@ -147,29 +190,29 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [permissionStatus, trackedVehicleId, vehicles, toast, resetTrackingState, setTrackedVehicleId, isTracking]);
+    }, [permissionStatus, trackedVehicleId, toast, resetTrackingState, setTrackedVehicleId, isTracking, user?.uid]);
+
+    // Resume tracking if it was active when permission is granted
+    useEffect(() => {
+        if (permissionStatus === 'granted' && isTracking && watchIdRef.current === null) {
+            startTracking();
+        }
+    }, [permissionStatus, isTracking, startTracking]);
 
     const stopTracking = useCallback(async () => {
         setIsStopping(true);
-        // Clear timers and watchers FIRST
-        if (durationIntervalRef.current) {
-            clearInterval(durationIntervalRef.current);
-            durationIntervalRef.current = null;
-        }
-        if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-            watchIdRef.current = null;
-        }
-        
-        setIsTracking(false); // Update state
-
         const trackedDistance = distanceRef.current;
-        const trackedDuration = startTimeRef.current ? (new Date().getTime() - startTimeRef.current.getTime()) / 60000 : 0; // in minutes
+        const trackedDuration = startTimeRef.current ? (Date.now() - startTimeRef.current.getTime()) / 60000 : 0;
 
-        if (!user || !firestore || !trackedVehicleId || trackedDistance <= 0.01) { // Min threshold 10 meters
+        // Visual stop first
+        setIsTracking(false);
+        if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+
+        if (!user || !firestore || !trackedVehicleId || trackedDistance <= 0.005) {
             resetTrackingState();
             setIsStopping(false);
-            if (trackedDistance > 0) toast({ title: 'Sessione troppo breve', description: 'Nessun dato salvato.' });
+            if (trackedDistance > 0) toast({ title: 'Sessione troppo breve', description: 'Nessun dato salvato (minimo 5 metri).' });
             return;
         }
 
@@ -179,7 +222,6 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
             const batch = writeBatch(firestore);
             const vehicleRef = doc(firestore, `users/${user.uid}/vehicles`, trackedVehicleId);
 
-            // 1. Create a new TrackingSession
             const sessionRef = doc(collection(vehicleRef, 'trackingSessions'));
             batch.set(sessionRef, {
                 id: sessionRef.id,
@@ -191,17 +233,12 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                 dataoraelimina: null,
             });
             
-            // 2. Update the vehicle's total mileage
             batch.update(vehicleRef, {
                 currentMileage: increment(trackedDistance)
             });
 
-            // 3. Update or create DailyStatistics
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normalize to start of day UTC
-            const dailyStatId = today.toISOString().split('T')[0].replace(/-/g, '');
-            const dailyStatRef = doc(collection(vehicleRef, 'dailyStatistics'), dailyStatId);
-
+            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const dailyStatRef = doc(collection(vehicleRef, 'dailyStatistics'), todayStr);
             const dailyStatSnap = await getDoc(dailyStatRef);
 
             if (dailyStatSnap.exists()) {
@@ -211,9 +248,9 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
                 });
             } else {
                 batch.set(dailyStatRef, {
-                    id: dailyStatId,
+                    id: todayStr,
                     vehicleId: trackedVehicleId,
-                    date: today.toISOString(),
+                    date: new Date().toISOString(),
                     totalDistance: trackedDistance,
                     totalTime: trackedDuration,
                     dataoraelimina: null,
