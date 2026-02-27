@@ -41,6 +41,14 @@ export async function generateMaintenanceAdvice(
 
   try {
     const result = await getMaintenanceAdvice(validatedFields.data);
+    
+    if ('error' in result) {
+        return {
+            advice: null,
+            error: result.error,
+        };
+    }
+
     return {
       advice: result,
       error: null,
@@ -49,7 +57,7 @@ export async function generateMaintenanceAdvice(
     console.error(error);
     return {
       advice: null,
-      error: "Si è verificato un errore durante la comunicazione con l'assistente AI.",
+      error: "Impossibile contattare l'assistente AI al momento.",
     };
   }
 }

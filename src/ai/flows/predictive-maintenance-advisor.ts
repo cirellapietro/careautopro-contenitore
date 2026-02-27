@@ -27,8 +27,17 @@ const MaintenanceAdviceOutputSchema = z.object({
 });
 export type MaintenanceAdviceOutput = z.infer<typeof MaintenanceAdviceOutputSchema>;
 
-export async function getMaintenanceAdvice(input: MaintenanceAdviceInput): Promise<MaintenanceAdviceOutput> {
-  return maintenanceAdviceFlow(input);
+export async function getMaintenanceAdvice(input: MaintenanceAdviceInput): Promise<MaintenanceAdviceOutput | { error: string }> {
+  try {
+    return await maintenanceAdviceFlow(input);
+  } catch (e: any) {
+    console.error(`Genkit flow 'maintenanceAdviceFlow' failed: ${e.message}`);
+    // Check if it's the specific "API not enabled" error
+    if (e.message?.includes('Generative Language API has not been used')) {
+        return { error: "L'API per l'IA generativa non è attiva. Abilitala nella console Google Cloud per questo progetto (705618426785)." };
+    }
+    return { error: "Si è verificato un errore imprevisto durante l'analisi AI." };
+  }
 }
 
 const prompt = ai.definePrompt({
