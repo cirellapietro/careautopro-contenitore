@@ -1,8 +1,10 @@
+
 "use client"
 import Link from "next/link"
 import {
   LogOut,
   Shield,
+  Bell,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -21,6 +23,10 @@ import { useRouter } from "next/navigation"
 import { useUser } from "@/firebase/auth/use-user"
 import { signOut } from "@/firebase/auth/auth"
 import { useTracking } from "@/contexts/tracking-context"
+import { useFirebase, useCollection } from "@/firebase"
+import { useMemo } from "react"
+import { collection, query, where } from "firebase/firestore"
+import { Badge } from "@/components/ui/badge"
 
 const UserMenu = () => {
     const { user } = useUser();
@@ -53,13 +59,13 @@ const UserMenu = () => {
             <DropdownMenuLabel>{user.displayName || user.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-                <Link href="/dashboard/profile">Profilo</Link>
+                <Link href="/dashboard/profile" className="cursor-pointer w-full">Profilo</Link>
             </DropdownMenuItem>
             {user.role === 'Amministratore' && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/admin" className="flex items-center gap-2">
+                  <Link href="/dashboard/admin" className="flex items-center gap-2 cursor-pointer w-full">
                     <Shield className="h-4 w-4" />
                     <span>Pannello Admin</span>
                   </Link>
@@ -87,6 +93,36 @@ function TrackingIndicator() {
     );
 }
 
+function NotificationBell() {
+    const { user } = useUser();
+    const { firestore } = useFirebase();
+
+    const alertsQuery = useMemo(() => {
+        if (!user || !firestore) return null;
+        return query(
+            collection(firestore, `users/${user.uid}/alerts`),
+            where('isRead', '==', false),
+            where('dataoraelimina', '==', null)
+        );
+    }, [user, firestore]);
+
+    const { data: unreadAlerts } = useCollection(alertsQuery);
+    const count = unreadAlerts?.length || 0;
+
+    return (
+        <Button variant="ghost" size="icon" className="relative" asChild>
+            <Link href="/dashboard/notifications">
+                <Bell className="h-5 w-5" />
+                {count > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] bg-destructive text-destructive-foreground">
+                        {count > 9 ? '9+' : count}
+                    </Badge>
+                )}
+            </Link>
+        </Button>
+    );
+}
+
 
 export function Header() {
     return (
@@ -96,6 +132,7 @@ export function Header() {
             </Link>
             <div className="flex items-center gap-4">
                 <TrackingIndicator />
+                <NotificationBell />
                 <ThemeToggleButton />
                 <UserMenu />
             </div>
