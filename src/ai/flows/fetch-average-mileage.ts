@@ -26,7 +26,11 @@ export async function fetchAverageMileage(input: FetchAverageMileageInput): Prom
   try {
     return await fetchAverageMileageFlow(input);
   } catch (e: any) {
-    return { error: e.message };
+    console.error(`Genkit flow 'fetchAverageMileage' failed: ${e.message}`);
+    if (e.message?.includes('Generative Language API has not been used')) {
+        return { error: "L'API per l'IA generativa non è attiva. Abilitala nella console Google Cloud." };
+    }
+    return { error: "Impossibile recuperare il chilometraggio medio." };
   }
 }
 
@@ -52,17 +56,7 @@ const fetchAverageMileageFlow = ai.defineFlow(
     outputSchema: FetchAverageMileageOutputSchema,
   },
   async (input) => {
-    try {
-      const { output } = await prompt(input);
-      return output!;
-    } catch (e: any) {
-        // Log the detailed error on the server for debugging
-        console.error(`Genkit flow 'fetchAverageMileageFlow' failed: ${e.message}`);
-        // Throw a simpler, client-safe error to prevent server crashes and be caught by the UI
-        if (e.message?.includes('Generative Language API has not been used')) {
-            throw new Error("Generative Language API not enabled.");
-        }
-        throw new Error('An unexpected error occurred while fetching the average mileage.');
-    }
+    const { output } = await prompt(input);
+    return output!;
   }
 );

@@ -27,7 +27,11 @@ export async function reverseGeocode(input: ReverseGeocodeInput): Promise<Revers
   try {
     return await reverseGeocodeFlow(input);
   } catch(e: any) {
-    return { error: e.message };
+    console.error(`Genkit flow 'reverseGeocode' failed: ${e.message}`);
+    if (e.message?.includes('Generative Language API has not been used')) {
+        return { error: "L'API per l'IA generativa non è attiva. Abilitala nella console Google Cloud per questo progetto (705618426785)." };
+    }
+    return { error: "Si è verificato un errore durante la geocodifica." };
   }
 }
 
@@ -54,17 +58,7 @@ const reverseGeocodeFlow = ai.defineFlow(
     outputSchema: ReverseGeocodeOutputSchema,
   },
   async (input) => {
-    try {
-      const { output } = await prompt(input);
-      return output!;
-    } catch (e: any) {
-        // Log the detailed error on the server for debugging
-        console.error(`Genkit flow 'reverseGeocodeFlow' failed: ${e.message}`);
-        // Throw a simpler, client-safe error to prevent server crashes and be caught by the UI
-        if (e.message?.includes('Generative Language API has not been used')) {
-            throw new Error("Generative Language API not enabled.");
-        }
-        throw new Error('An unexpected error occurred during reverse geocoding.');
-    }
+    const { output } = await prompt(input);
+    return output!;
   }
 );
