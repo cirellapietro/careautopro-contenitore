@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, Suspense, useState } from 'react';
@@ -11,7 +10,7 @@ import type { Vehicle, MaintenanceIntervention } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Loader2, Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Pencil, Trash2, CheckCircle2, Sparkles } from 'lucide-react';
 import { MaintenanceAdvisorForm } from '@/components/dashboard/maintenance-advisor-form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -237,11 +236,20 @@ function VehicleDetailContent() {
     
   const currentMileageFormatted = (typeof vehicle.currentMileage === 'number' ? vehicle.currentMileage : 0).toLocaleString('it-IT');
 
+  const scrollToAdvisor = () => {
+    const element = document.getElementById('ai-advisor');
+    element?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="space-y-8">
-      <div>
+      <div className="flex items-center justify-between">
         <Button variant="outline" asChild>
           <Link href="/dashboard/vehicles"><ArrowLeft className="mr-2 h-4 w-4" /> I Miei Veicoli</Link>
+        </Button>
+        <Button variant="secondary" onClick={scrollToAdvisor} className="gap-2">
+          <Sparkles className="h-4 w-4 text-accent" />
+          Chiedi all'IA
         </Button>
       </div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -285,7 +293,9 @@ function VehicleDetailContent() {
           </CardContent>
       </Card>
 
-      <MaintenanceAdvisorForm vehicle={vehicle} />
+      <div id="ai-advisor">
+        <MaintenanceAdvisorForm vehicle={vehicle} />
+      </div>
     </div>
   );
 }

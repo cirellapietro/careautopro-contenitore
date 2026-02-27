@@ -38,6 +38,7 @@ export default function DashboardLayout({
     { href: "/dashboard/statistics", label: "Statistiche" },
     { href: "/dashboard/vehicles", label: "Veicoli" },
     { href: "/dashboard/interventions", label: "Interventi" },
+    { href: "/dashboard/ai-assistant", label: "Assistente AI" },
     { href: "/dashboard/notifications", label: "Notifiche" },
   ];
 
