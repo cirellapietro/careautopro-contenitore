@@ -55,7 +55,7 @@ const fetchAverageMileageFlow = ai.defineFlow(
     inputSchema: FetchAverageMileageInputSchema,
     outputSchema: FetchAverageMileageOutputSchema,
   },
-  async (input) => {
+  async (input: any) => {
     const { output } = await prompt(input);
     return output!;
   }
