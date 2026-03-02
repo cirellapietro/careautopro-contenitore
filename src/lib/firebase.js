@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSy...", // La tua chiave API reale
+  apiKey: "AIzaSy...", // La tua chiave API
   authDomain: "careautopro.firebaseapp.com",
-  databaseURL: "https://careautopro-default-rtdb.europe-west1.firebasedatabase.app",
+  databaseURL: "https://studio-99874364-880bd-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "careautopro",
   storageBucket: "careautopro.appspot.com",
   messagingSenderId: "3383936801",
