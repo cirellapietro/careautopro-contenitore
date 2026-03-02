@@ -20,7 +20,7 @@ export default function HomePage() {
         const userSnap = await get(userRef);
 
         if (!userSnap.exists()) {
-          // Se l'utente è nuovo, lo registra come utilizzatore
+          // Auto-registrazione come 'utilizzatore' (come in Studio)
           await set(userRef, {
             email: user.email,
             displayName: user.displayName,
@@ -30,7 +30,7 @@ export default function HomePage() {
           router.push("/dashboard/vehicles");
         } else {
           const userData = userSnap.val();
-          // Smistamento in base al ruolo del DB
+          // Smistamento Ruoli
           if (userData.roleId === 'admin') {
             router.push("/dashboard/admin/users");
           } else {
@@ -38,7 +38,7 @@ export default function HomePage() {
           }
         }
       } catch (error) {
-        console.error("Errore sincronizzazione sorgenti:", error);
+        console.error("Errore di sincronizzazione sorgenti:", error);
       }
     });
     return () => unsubscribe();
@@ -46,7 +46,7 @@ export default function HomePage() {
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-      <p>Sincronizzazione sorgenti con Vercel...</p>
+      <p>Sincronizzazione con i sorgenti di Firebase Studio...</p>
     </div>
   );
 }
