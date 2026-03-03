@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -14,31 +14,26 @@ export default function HomePage() {
         router.push("/login");
         return;
       }
-
       try {
         const userRef = ref(db, 'users/' + user.uid);
         const userSnap = await get(userRef);
 
         if (!userSnap.exists()) {
-          // Auto-registrazione come 'utilizzatore' (come in Studio)
+          // Registrazione automatica ruolo utilizzatore
           await set(userRef, {
             email: user.email,
-            displayName: user.displayName,
+            displayName: user.displayName || "Nuovo Utente",
             roleId: "utilizzatore",
             createdAt: new Date().toISOString()
           });
           router.push("/dashboard/vehicles");
         } else {
           const userData = userSnap.val();
-          // Smistamento Ruoli
-          if (userData.roleId === 'admin') {
-            router.push("/dashboard/admin/users");
-          } else {
-            router.push("/dashboard/vehicles");
-          }
+          // Smistamento in base al ruolo presente nel database
+          router.push(userData.roleId === 'admin' ? "/dashboard/admin/users" : "/dashboard/vehicles");
         }
       } catch (error) {
-        console.error("Errore di sincronizzazione sorgenti:", error);
+        console.error("Errore di sincronizzazione:", error);
       }
     });
     return () => unsubscribe();
@@ -46,7 +41,7 @@ export default function HomePage() {
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-      <p>Sincronizzazione con i sorgenti di Firebase Studio...</p>
+      <p>Sincronizzazione CareAuto Pro...</p>
     </div>
   );
 }
