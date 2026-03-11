@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * Core Philosophy: This ruleset enforces a strict user-ownership model where all user-generated data
+     * is isolated and accessible only by the user who created it, with an override for 'Amministratore' roles.
+     * The primary security mechanisms are path-based authorization and role-based access control (RBAC).
+     *
+     * Data Structure: Data is segregated into:
+     * 1. Private User Data: Stored under `/users/{userId}/...`, accessible by the owner or an admin.
+     * 2. Public Global Data: Stored in top-level collections like `/vehicleTypes`, read-only for clients but managed by admins.
+     *
+     * Key Security Decisions:
+     * - User data is private to the owner, but administrators have universal read/write access for management purposes.
+     * - Listing of top-level user documents (`/users`) is allowed only for administrators to prevent user enumeration by standard users.
+     * - Public data collections are globally readable but are writeable only by administrators to protect shared application data.
+     * - DELETES ARE DISALLOWED. All deletes are logical (soft deletes) via the `dataoraelimina` field.
+     */
+
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
+    /**
+     * Returns true if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Returns true if the authenticated user's UID matches the provided userId.
+     * This is the primary function for enforcing data ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Returns true if the requesting user has the 'Amministratore' role.
+     * This function reads the user's own document to check their role.
+     */
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Amministratore';
+    }
+
+    /**
+     * Validates that the ID of the user document being created matches the user's auth UID.
+     */
+    function isCreatingOwnUserDoc(userId) {
+      return request.resource.data.id == userId;
+    }
+    
+    /**
+     * Validates that the 'dataoraelimina' field is a string if it exists.
+     * On update, it ensures the field cannot be removed.
+     */
+    function isValidSoftDelete() {
+        // On create, field is optional or null.
+        if (request.method == 'create') {
+            return !('dataoraelimina' in request.resource.data) || request.resource.data.dataoraelimina == null;
+        }
+        // On update, you can add it, but not remove it if it exists.
+        if (request.method == 'update') {
+            // Cannot remove soft delete marker.
+            if ('dataoraelimina' in resource.data && resource.data.dataoraelimina != null) {
+                return 'dataoraelimina' in request.resource.data && request.resource.data.dataoraelimina != null;
+            }
+            return true; // Can add it freely.
+        }
+        return true;
+    }
+
+    // =====================================================================
+    // User Data Rules
+    // =====================================================================
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isCreatingOwnUserDoc(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
+    }
+
+    match /users/{userId}/vehicles/{vehicleId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
+    }
+    
+    match /users/{userId}/alerts/{alertId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
+    }
+
+    match /users/{userId}/vehicles/{vehicleId}/{subcollection}/{docId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSoftDelete();
+      allow delete: if false; // Soft deletes only
+    }
+
+    // =====================================================================
+    // Public & Admin-Managed Data Rules
+    // =====================================================================
+
+    match /config/{configId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
+    }
+
+    match /vehicleTypes/{vehicleTypeId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
+    }
+
+    match /vehicleTypes/{vehicleTypeId}/maintenanceChecks/{checkId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
+    }
+
+    match /roles/{roleId} {
+      allow get, list: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false; // Soft deletes only
+    }
+  }
+}

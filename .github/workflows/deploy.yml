@@ -1,0 +1,30 @@
+name: Deploy PWA and Build APK
+on: [push]
+jobs:
+  build_all:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22"
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+      - name: Build Web (PWA)
+        run: npx next build
+      - name: Deploy to Firebase Hosting (PWA)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          projectId: "studio-99874364-880bd" # Tuo Project ID corretto
+          channelId: live
+      - name: Build Android APK
+        run: |
+          npx cap add android || true
+          npx cap sync android
+          cd android && ./gradlew assembleDebug
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
