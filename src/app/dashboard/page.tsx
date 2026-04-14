@@ -15,7 +15,6 @@ export default function Dashboard() {
     setView('main');
   };
 
-  // SCHERMATA: I MIEI VEICOLI
   if (view === 'add_vehicle') {
     return (
       <div style={containerStyle}>
@@ -46,23 +45,21 @@ export default function Dashboard() {
     );
   }
 
-  // SCHERMATA: COPILOTA / NAVIGATORE
   if (view === 'copilota') {
     return (
       <div style={containerStyle}>
         <h3 style={headerStyle}>COPILOTA / NAVIGATORE</h3>
         <div style={gridStyle}>
-          <button onClick={() => window.open('https://maps.google.com/?q=caffe+vicino+a+me', '_blank')} style={cardStyle}>☕ CERCA CAFFÈ</button>
-          <button onClick={() => window.open('https://maps.google.com/?q=bagni+pubblici', '_blank')} style={cardStyle}>🚾 CERCA BAGNO</button>
-          <button onClick={() => window.open('https://maps.google.com/?q=benzinaio', '_blank')} style={cardStyle}>⛽ RIFORNIMENTO</button>
-          <button onClick={() => window.open('https://maps.google.com/?q=ristorante', '_blank')} style={cardStyle}>🍴 RISTORANTE</button>
+          <button onClick={() => window.open('https://www.google.it/maps/search/caffe', '_blank')} style={cardStyle}>☕ CERCA CAFFÈ</button>
+          <button onClick={() => window.open('https://www.google.it/maps/search/bagno', '_blank')} style={cardStyle}>🚾 CERCA BAGNO</button>
+          <button onClick={() => window.open('https://www.google.it/maps/search/distributore', '_blank')} style={cardStyle}>⛽ RIFORNIMENTO</button>
+          <button onClick={() => window.open('https://www.google.it/maps/search/ristorante', '_blank')} style={cardStyle}>🍴 RISTORANTE</button>
         </div>
         <button onClick={() => setView('main')} style={cancelBtn}>← TORNA ALLA DASHBOARD</button>
       </div>
     );
   }
 
-  // SCHERMATA: MANUTENZIONE
   if (view === 'manutenzione') {
     return (
       <div style={containerStyle}>
@@ -75,7 +72,6 @@ export default function Dashboard() {
     );
   }
 
-  // SCHERMATA: PROFILO
   if (view === 'profilo') {
     return (
       <div style={containerStyle}>
@@ -89,7 +85,6 @@ export default function Dashboard() {
     );
   }
 
-  // DASHBOARD PRINCIPALE
   return (
     <div style={containerStyle}>
       <header style={{marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px'}}>
@@ -99,23 +94,19 @@ export default function Dashboard() {
 
       <div style={gridStyle}>
         <button onClick={() => setView('add_vehicle')} style={cardStyle}>
-          <span style={iconStyle}>🚗</span>
-          <br/>I MIEI VEICOLI
+          <span style={iconStyle}>🚗</span><br/>I MIEI VEICOLI
         </button>
         
         <button onClick={() => setView('copilota')} style={cardStyle}>
-          <span style={iconStyle}>📍</span>
-          <br/>COPILOTA / NAVIGATORE
+          <span style={iconStyle}>📍</span><br/>COPILOTA / NAVIGATORE
         </button>
 
         <button onClick={() => setView('manutenzione')} style={cardStyle}>
-          <span style={iconStyle}>🛠️</span>
-          <br/>MANUTENZIONE
+          <span style={iconStyle}>🛠️</span><br/>MANUTENZIONE
         </button>
 
         <button onClick={() => setView('profilo')} style={cardStyle}>
-          <span style={iconStyle}>👤</span>
-          <br/>IL MIO PROFILO
+          <span style={iconStyle}>👤</span><br/>IL MIO PROFILO
         </button>
       </div>
 
@@ -124,17 +115,17 @@ export default function Dashboard() {
   );
 }
 
-// STILI OTTIMIZZATI
-const containerStyle = { padding: '20px', backgroundColor: '#000', minHeight: '100vh', color: '#fff', textTransform: 'uppercase', fontFamily: 'sans-serif' };
+// STILI
+const containerStyle = { padding: '20px', backgroundColor: '#000', minHeight: '100vh', color: '#fff', textTransform: 'uppercase' as const, fontFamily: 'sans-serif' };
 const headerStyle = { color: '#00E676', marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '10px' };
 const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' };
-const cardStyle = { padding: '30px 10px', backgroundColor: '#111', border: '1px solid #333', borderRadius: '15px', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', textAlign: 'center' };
+const cardStyle = { padding: '30px 10px', backgroundColor: '#111', border: '1px solid #333', borderRadius: '15px', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', textAlign: 'center' as const };
 const iconStyle = { fontSize: '24px', marginBottom: '10px', display: 'block' };
-const inputStyle = { padding: '18px', borderRadius: '10px', border: '1px solid #333', background: '#111', color: '#fff', fontSize: '16px', marginBottom: '10px', width: '100%', boxSizing: 'border-box', textTransform: 'uppercase' };
-const dateInput = { padding: '15px 5px', borderRadius: '10px', border: '1px solid #333', background: '#111', color: '#fff', flex: 1, textAlign: 'center' };
+const inputStyle = { padding: '18px', borderRadius: '10px', border: '1px solid #333', background: '#111', color: '#fff', fontSize: '16px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' as const, textTransform: 'uppercase' as const };
+const dateInput = { padding: '15px 5px', borderRadius: '10px', border: '1px solid #333', background: '#111', color: '#fff', flex: 1, textAlign: 'center' as const };
 const labelStyle = { fontSize: '10px', color: '#aaa', display: 'block', marginBottom: '5px' };
 const saveBtn = { padding: '20px', backgroundColor: '#00E676', border: 'none', borderRadius: '10px', color: '#000', fontWeight: 'bold', width: '100%', marginTop: '10px', fontSize: '16px' };
 const cancelBtn = { padding: '15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '10px', color: '#aaa', width: '100%', marginTop: '20px', fontSize: '12px', cursor: 'pointer' };
 const toggleBtn = { fontSize: '9px', color: '#00E676', background: 'none', border: '1px solid #00E676', borderRadius: '5px', padding: '5px' };
-const adSpace = { marginTop: '30px', padding: '15px', background: '#080808', border: '1px dashed #333', textAlign: 'center', fontSize: '10px', color: '#444' };
-const formStyle = { display: 'flex', flexDirection: 'column' };
+const adSpace = { marginTop: '30px', padding: '15px', background: '#080808', border: '1px dashed #333', textAlign: 'center' as const, fontSize: '10px', color: '#444' };
+const formStyle = { display: 'flex', flexDirection: 'column' as const };
