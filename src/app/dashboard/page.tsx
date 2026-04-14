@@ -1,15 +1,10 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export default function Dashboard() {
   const [view, setView] = useState('main');
   const today = new Date().toISOString().split('T')[0];
   
-  // Stato Hardware simulato (in produzione useremo le API Web/Capacitor)
-  const [hasGps, setHasGps] = useState(true); 
-  const [hasHotspot, setHasHotspot] = useState(true);
-  const [hotspotName, setHotspotName] = useState("CareAuto_Hotspot_Default");
-
   const [vehicleData, setVehicleData] = useState({ 
     brandModel: '', 
     year: today, 
@@ -18,87 +13,97 @@ export default function Dashboard() {
     trackHotspot: false
   });
 
-  const [settings, setSettings] = useState({
-    hideKmWarning: false,
-    hideDateWarning: false
-  });
+  const [settings, setSettings] = useState({ hideMaintWarning: false });
+
+  // Funzione per generare interventi automatici (Simulazione ricerca internet)
+  const generateMaintenance = (model, km) => {
+    alert("RICERCA INTERVENTI PERIODICI PER " + model.toUpperCase() + " IN CORSO...");
+    const baseKm = parseInt(km) || 0;
+    const interventi = [
+      { tipo: "CAMBIO OLIO", km: baseKm + 15000 },
+      { tipo: "CINGHIA DISTRIBUZIONE", km: baseKm + 100000 },
+      { tipo: "FILTRO ABITACOLO", km: baseKm + 20000 }
+    ];
+    return interventi;
+  };
 
   const saveVehicle = () => {
-    let finalKm = vehicleData.km;
+    const finalKm = vehicleData.km || "STIMATI";
+    const interventi = generateMaintenance(vehicleData.brandModel, vehicleData.km);
     
-    if (vehicleData.year === today && !settings.hideDateWarning) {
-      const confirmDate = confirm("Hai lasciato la data di oggi come immatricolazione. È corretto?");
-      if (!confirmDate) return;
+    alert("INTERVENTI GENERATI AUTOMATICAMENTE PER " + vehicleData.brandModel.toUpperCase());
+    
+    if (!settings.hideMaintWarning) {
+      const check = confirm("HO GENERATO GLI INTERVENTI AUTOMATICI. VUOI AGGIORNARE EVENTUALI LAVORI GIÀ EFFETTUATI A KM DIVERSI?\n\n(OK PER AGGIORNARE / ANNULLA PER PROSEGUIRE)");
+      if (check) {
+        alert("APERTURA STORICO INTERVENTI...");
+      }
     }
-
-    if (!finalKm) {
-      const age = Math.max(1, new Date().getFullYear() - new Date(vehicleData.year).getFullYear());
-      finalKm = age * 11500;
-      alert("Chilometri non indicati: verranno considerati da una stima approssimativa di " + finalKm + " km.");
-    }
-
-    console.log("Salvataggio in romataxihub:", { ...vehicleData, km: finalKm });
     setView('main');
   };
 
   if (view === 'add_vehicle') {
     return (
-      <div style={{ padding: '20px', backgroundColor: '#000', minHeight: '100vh', color: '#fff' }}>
-        <h3 style={{color: '#00E676', borderBottom: '1px solid #222', paddingBottom: '10px'}}>Nuovo Veicolo</h3>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-          
-          {/* 1. Marca e Modello unico campo */}
+      <div style={containerStyle}>
+        <h3 style={headerStyle}>NUOVO VEICOLO</h3>
+        <div style={formStyle}>
           <input 
-            placeholder="Marca e modello veicolo" 
+            placeholder="MARCA E MODELLO VEICOLO" 
             style={inputStyle} 
-            onChange={e => setVehicleData({...vehicleData, brandModel: e.target.value})} 
+            value={vehicleData.brandModel.toUpperCase()}
+            onChange={e => setVehicleData({...vehicleData, brandModel: e.target.value.toUpperCase()})} 
           />
           
-          <label style={labelStyle}>Data Immatricolazione:</label>
-          <input type="date" value={vehicleData.year} style={inputStyle} onChange={e => setVehicleData({...vehicleData, year: e.target.value})} />
+          <label style={labelStyle}>DATA IMMATRICOLAZIONE:</label>
+          <input 
+            type="date" 
+            value={vehicleData.year} 
+            style={inputStyle} 
+            onChange={e => setVehicleData({...vehicleData, year: e.target.value})} 
+          />
           
-          {/* 2. Nuova label Chilometri */}
-          <label style={labelStyle}>Chilometri reali (se non indicati saranno considerati da una stima approssimativa):</label>
-          <input type="number" style={inputStyle} onChange={e => setVehicleData({...vehicleData, km: e.target.value})} />
+          <label style={labelStyle}>CHILOMETRI REALI (STIMA SE VUOTO):</label>
+          <input 
+            type="number" 
+            style={inputStyle} 
+            onChange={e => setVehicleData({...vehicleData, km: e.target.value})} 
+          />
           
-          {/* 3. Check GPS (Visibile solo se presente hardware) */}
-          {hasGps && (
-            <div style={checkRow}>
-              <input type="checkbox" id="gps" onChange={e => setVehicleData({...vehicleData, trackGps: e.target.checked})} />
-              <label htmlFor="gps">Attiva tracking GPS</label>
-            </div>
-          )}
+          <div style={checkRow}>
+            <input type="checkbox" id="gps" onChange={e => setVehicleData({...vehicleData, trackGps: e.target.checked})} />
+            <label htmlFor="gps">ATTIVA TRACKING GPS</label>
+          </div>
 
-          {/* 4. Check Hotspot (Visibile solo se presente hardware) */}
-          {hasHotspot && (
-            <div style={checkRow}>
-              <input type="checkbox" id="hotspot" onChange={e => setVehicleData({...vehicleData, trackHotspot: e.target.checked})} />
-              <label htmlFor="hotspot">Attiva hotspot ({hotspotName})</label>
-            </div>
-          )}
+          <div style={checkRow}>
+            <input type="checkbox" id="hotspot" onChange={e => setVehicleData({...vehicleData, trackHotspot: e.target.checked})} />
+            <label htmlFor="hotspot">ATTIVA HOTSPOT (CAREAUTO_PRO)</label>
+          </div>
           
-          {/* Tasto rinominato in Salva */}
-          <button onClick={saveVehicle} style={saveBtn}>Salva</button>
-          <button onClick={() => setView('main')} style={{background: 'none', border: 'none', color: '#888'}}>Annulla</button>
+          <button onClick={saveVehicle} style={saveBtn}>SALVA</button>
+          <button onClick={() => setView('main')} style={cancelBtn}>ANNULLA</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#000', minHeight: '100vh', color: '#fff' }}>
-      <h2 style={{ color: '#00E676' }}>Care Auto Pro</h2>
+    <div style={containerStyle}>
+      <h2 style={{ color: '#00E676' }}>CARE AUTO PRO</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' }}>
-        <button onClick={() => setView('add_vehicle')} style={btnStyle}>🚗 Gestisci Veicolo</button>
-        <button onClick={() => alert("Funzione Manutenzione")} style={btnStyle}>🛠️ Manutenzione</button>
+        <button onClick={() => setView('add_vehicle')} style={btnStyle}>🚗 GESTISCI VEICOLO</button>
+        <button onClick={() => alert("MOSTRA STORICO INTERVENTI GENERATI")} style={btnStyle}>🛠️ MANUTENZIONE</button>
       </div>
     </div>
   );
 }
 
-const inputStyle = { padding: '15px', borderRadius: '10px', border: '1px solid #333', background: '#111', color: '#fff' };
-const labelStyle = { fontSize: '12px', color: '#aaa', marginBottom: '-10px' };
-const checkRow = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', padding: '5px 0' };
-const btnStyle = { padding: '20px', backgroundColor: '#151515', border: '1px solid #333', borderRadius: '15px', color: '#fff', fontWeight: 'bold' };
-const saveBtn = { padding: '15px', backgroundColor: '#00E676', border: 'none', borderRadius: '10px', color: '#000', fontWeight: 'bold', marginTop: '20px' };
+// STILI IN MAIUSCOLO E OTTIMIZZATI
+const containerStyle = { padding: '20px', backgroundColor: '#000', minHeight: '100vh', color: '#fff', textTransform: 'uppercase' };
+const headerStyle = { color: '#00E676', borderBottom: '1px solid #222', paddingBottom: '10px' };
+const formStyle = { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' };
+const inputStyle = { padding: '15px', borderRadius: '10px', border: '1px solid #333', background: '#111', color: '#fff', fontSize: '16px', textTransform: 'uppercase' };
+const labelStyle = { fontSize: '11px', color: '#aaa', marginBottom: '-5px' };
+const checkRow = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' };
+const btnStyle = { padding: '20px', backgroundColor: '#151515', border: '1px solid #333', borderRadius: '15px', color: '#fff', fontWeight: 'bold', fontSize: '12px' };
+const saveBtn = { padding: '20px', backgroundColor: '#00E676', border: 'none', borderRadius: '10px', color: '#000', fontWeight: 'bold', fontSize: '16px' };
+const cancelBtn = { background: 'none', border: 'none', color: '#888', marginTop: '10px' };
