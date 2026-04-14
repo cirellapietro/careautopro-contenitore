@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 210 40% 98%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 210 40% 98%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 25 95% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 84% 4.9%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 25 95% 53%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 25 95% 53%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 210 20% 90%;
+    --card: 0 0% 3%;
+    --card-foreground: 210 20% 90%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 210 20% 90%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 0 0% 7%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 215 15% 60%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 80% 45%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 0 0% 12%;
+    --input: 0 0% 10%;
+    --ring: 25 95% 53%;
+  }
+}
+
+@layer components {
+  .label-tecnica {
+    @apply text-[10px] font-black uppercase tracking-widest text-muted-foreground leading-none;
+  }
+
+  .valore-monumentale {
+    @apply text-4xl md:text-5xl font-black tracking-tighter tabular-nums leading-none text-foreground;
+  }
+
+  .targa-box {
+    @apply bg-white dark:bg-zinc-900 text-black dark:text-white px-4 py-1.5 rounded-lg border-2 border-black/10 dark:border-white/10 shadow-sm font-mono font-black uppercase tracking-widest text-xl;
+  }
+
+  .btn-orange {
+    @apply bg-accent hover:bg-accent/90 text-white font-black uppercase tracking-tight shadow-lg transition-all active:scale-95;
+  }
+
+  .widget-container {
+    @apply bg-card border-2 rounded-[32px] p-6 shadow-xl space-y-6 overflow-hidden;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+}
+body {
+  @apply bg-slate-50 text-slate-900;
+}

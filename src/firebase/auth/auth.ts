@@ -1,0 +1,145 @@
+'use client';
+import {
+  Auth,
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  signInWithPopup,
+} from 'firebase/auth';
+import { getFirestore, doc, setDoc, Firestore, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirebaseApp } from '../config';
+import { errorEmitter } from '../error-emitter';
+import { FirestorePermissionError } from '../errors';
+
+let auth: Auth;
+let db: Firestore;
+
+function getFirebaseAuth() {
+  if (auth) return auth;
+  const app = getFirebaseApp();
+  auth = getAuth(app);
+  return auth;
+}
+
+function getFirebaseDb() {
+  if (db) return db;
+  const app = getFirebaseApp();
+  db = getFirestore(app);
+  return db;
+}
+
+const googleProvider = new GoogleAuthProvider();
+const facebookProvider = new FacebookAuthProvider();
+
+async function createUserDocument(uid: string, email: string | null, displayName: string | null, photoURL: string | null) {
+  const firestore = getFirebaseDb();
+  const userRef = doc(firestore, 'users', uid);
+
+  const userRole = email === 'cirellapietro@gmail.com' ? 'Amministratore' : 'Utente';
+
+  const userData = {
+    id: uid,
+    uid: uid,
+    email: email,
+    displayName: displayName,
+    photoURL: photoURL,
+    role: userRole,
+    notificationChannels: ['app', 'email'],
+    notificationReminderTime: 3, // days
+    dataoraelimina: null,
+  };
+  
+  setDoc(userRef, userData, { merge: true }).catch(serverError => {
+      const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'create',
+          requestResourceData: userData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+  });
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<void> {
+  const authInstance = getFirebaseAuth();
+  const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
+
+  if (userCredential.user && email === 'cirellapietro@gmail.com') {
+    const firestore = getFirebaseDb();
+    const userRef = doc(firestore, 'users', userCredential.user.uid);
+    try {
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+          if (userDoc.data().role !== 'Amministratore') {
+            const dataToUpdate = { role: 'Amministratore' };
+            updateDoc(userRef, dataToUpdate).catch(serverError => {
+                const permissionError = new FirestorePermissionError({
+                    path: userRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
+          }
+        } else {
+          await createUserDocument(userCredential.user.uid, userCredential.user.email, userCredential.user.displayName, userCredential.user.photoURL);
+        }
+    } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  }
+}
+
+export async function signUpWithEmail(email: string, password: string, displayName: string): Promise<void> {
+  const authInstance = getFirebaseAuth();
+  const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
+  const user = userCredential.user;
+  await updateProfile(user, { displayName });
+  await createUserDocument(user.uid, user.email, displayName, user.photoURL);
+}
+
+export async function signInWithGoogle(): Promise<void> {
+  const authInstance = getFirebaseAuth();
+  const result = await signInWithPopup(authInstance, googleProvider);
+  const user = result.user;
+  
+  const firestore = getFirebaseDb();
+  const userRef = doc(firestore, 'users', user.uid);
+  
+  try {
+    const docSnap = await getDoc(userRef);
+    if (!docSnap.exists()) {
+      await createUserDocument(user.uid, user.email, user.displayName, user.photoURL);
+    } else {
+      if (user.email === 'cirellapietro@gmail.com' && docSnap.data().role !== 'Amministratore') {
+          const dataToUpdate = { role: 'Amministratore' };
+          updateDoc(userRef, dataToUpdate).catch(serverError => {
+              const permissionError = new FirestorePermissionError({
+                  path: userRef.path,
+                  operation: 'update',
+                  requestResourceData: dataToUpdate,
+              });
+              errorEmitter.emit('permission-error', permissionError);
+          });
+      }
+    }
+  } catch (serverError) {
+      const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'get',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+  }
+}
+
+export async function signOut(): Promise<void> {
+  const authInstance = getFirebaseAuth();
+  await firebaseSignOut(authInstance);
+}

@@ -1,0 +1,11 @@
+oloUpdate src/app/dashboard/page.tsx and create a basic src/app/page.tsx (Landing Page).
+Help Section: Inside the dashboard, add an 'Help' modal or view. List voice commands for: 'Caffè', 'Parcheggio Gratuito/Pagamento', 'Rifornimento', 'Sosta'.
+Multi-language Landing Page (src/app/page.tsx):
+Detect browser language (navigator.language).
+Show professional description of CareAutoPro.
+Add two main buttons: 'Scarica APK' (visible for Android) and 'Installa App' (with iOS instructions if on Safari).
+AI Voice Feedback: Update the Assistant logic so it greets the user in their detected language.
+Anomalia-Free: Ensure no 'error' words are present in any language version.
+Show the Update File button for both files.{
+  "mcpServers": {}
+}
